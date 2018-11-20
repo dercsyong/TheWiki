@@ -6,33 +6,11 @@
 	function simplemark($str){
 		// 하위문서 링크
 		$str = str_replace("[[/", "[[".$_GET['w']."/", $str);
-		
-		// #!wiki style 문법 우회 적용
-		$str = str_replace("}}}", "_(HTMLE)_", $str);
-		$htmlstart = explode('{{{#!wiki style="', $str);
-		for($x=1;$x<count($htmlstart);$x++){
-			$style = reset(explode('"', $htmlstart[$x]));
-			$str = str_replace('{{{#!wiki style="'.$style.'"', '{{{#!html <div style="'.$style.'">}}}', $str);
-			
-			$loop = explode("_(HTMLE)_", next(explode('{{{#!html <div style="'.$style.'">}}}', $str)));
-			$check = true;
-			$z = 0;
-			while($check){
-				if(count(explode("{{{", $loop[$z]))>1){
-					$z = $z + count(explode("{{{", $loop[$z])) - 1;
-				} else {
-					$str = str_replace($loop[$z-1]."_(HTMLE)_".$loop[$z]."_(HTMLE)_", $loop[$z-1]."_(HTMLE)_".$loop[$z]."{{{#!html </div>}}}", $str);
-					$check = false;
-				}
-				if($z>count($loop)){
-					$check = false;
-				}
-			}
-		}
 		$str = str_replace("</div>}}}_(HTMLE)_", "</div>}}}{{{#!html </div>}}}", $str);
+		$str = str_replace('[[나무파일:', '[[파일:', $str);
 		
 		// [[XXX|[[XXX]]]] 문법 우회 적용
-		$str = str_replace("| [[파일:", "|[[파일:", $str);
+		$str = str_replace("| [[:", "|[[:", $str);
 		$filestart = explode('|[[파일:', $str);
 		for($x=0;$x<count($filestart)-1;$x++){
 			$include2 = end(explode("[[", $filestart[$x]));
@@ -53,11 +31,8 @@
 		$str = str_replace("_(NAMUMIRRORHTMLSTART)_", "{{{#!html <div style=", $str);
 		$str = str_replace("_(NAMUMIRRORHTMLEND)_", "}}}", $str);
 		$str = str_replace("_(NAMUMIRRORDAASH)_", "'", $str);
-		$str = str_replace("﻿#", "#", $str);
-		$str = str_replace("﻿||", "||", $str);
-		
-		// [datetime] [PageCount] 지원
-		$str = str_replace("[datetime]", date("Y-m-d H:i:s"), $str);
+		$str = str_replace("\n ||", "\n||", $str);
+		$str = str_replace("#!end}}}", "}}}", $str);
 		
 		return $str;
 	}
@@ -65,34 +40,11 @@
 	function themark($str){
 		// 하위문서 링크
 		$str = str_replace("[[/", "[[".$_GET['w']."/", $str);
-		
-		// #!wiki style 문법 우회 적용
-		$str = str_replace("}}}", "_(HTMLE)_", $str);
-		$htmlstart = explode('{{{#!wiki style="', $str);
-		for($x=1;$x<count($htmlstart);$x++){
-			$style = reset(explode('"', $htmlstart[$x]));
-			$str = str_replace('{{{#!wiki style="'.$style.'"', '{{{#!html <div style="'.$style.'">}}}', $str);
-			
-			$loop = explode("_(HTMLE)_", next(explode('{{{#!html <div style="'.$style.'">}}}', $str)));
-			$check = true;
-			$z = 0;
-			while($check){
-				if(count(explode("{{{", $loop[$z]))>1){
-					$z = $z + count(explode("{{{", $loop[$z])) - 1;
-				} else {
-					$str = str_replace($loop[$z-1]."_(HTMLE)_".$loop[$z]."_(HTMLE)_", $loop[$z-1]."_(HTMLE)_".$loop[$z]."{{{#!html </div>}}}", $str);
-					$check = false;
-				}
-				if($z>count($loop)){
-					$check = false;
-				}
-			}
-		}
 		$str = str_replace("</div>}}}_(HTMLE)_", "</div>}}}{{{#!html </div>}}}", $str);
 		$str = str_replace('[[나무파일:', '[[파일:', $str);
 		
 		// [[XXX|[[XXX]]]] 문법 우회 적용
-		$str = str_replace("| [[파일:", "|[[파일:", $str);
+		$str = str_replace("| [[:", "|[[:", $str);
 		$filestart = explode('|[[파일:', $str);
 		for($x=0;$x<count($filestart)-1;$x++){
 			$include = end(explode("[[", $filestart[$x]));
@@ -113,8 +65,37 @@
 		$str = str_replace("_(NAMUMIRRORHTMLSTART)_", "{{{#!html <div style=", $str);
 		$str = str_replace("_(NAMUMIRRORHTMLEND)_", "}}}", $str);
 		$str = str_replace("_(NAMUMIRRORDAASH)_", "'", $str);
-		$str = str_replace("﻿#", "#", $str);
+		$str = str_replace("\n ||", "\n||", $str);
+		$str = str_replace("#!end}}}", "}}}", $str);
 		
+		// #!folding 문법 #!end}}} 치환
+		$foldingstart = explode('{{{#!folding ', $str);
+		for($z=1;$z<count($foldingstart);$z++){
+			$foldingcheck = true;
+			$find = '';
+			$match = '';
+			$temp_explode = '';
+			
+			if(count(explode("}}}", $foldingstart[$z]))>1){
+				$temp_explode = explode("}}}", $foldingstart[$z]);
+				
+				$end_loop = 0;
+				while(count($temp_explode)>$end_loop){
+					if(count(explode('{{{', $temp_explode[$end_loop]))>1){
+						$end_loop++;
+					} else {
+						for($x=0;$end_loop>$x;$x++){
+							$match .= $temp_explode[$x].'}}}';
+						}
+						$find = $match.$temp_explode[$end_loop].'}}}';
+						$match .= $temp_explode[$end_loop].'#!end}}}';
+						$end_loop = count($temp_explode)+1;
+					}
+				}
+				
+				$str = str_replace('{{{#!folding '.$find, '{{{#!folding '.$match, $str);
+			}
+		}
 		// #!folding 문법 우선 적용
 		$foldingstart = explode('{{{#!folding ', $str);
 		for($z=1;$z<count($foldingstart);$z++){
@@ -130,9 +111,6 @@
 				$str = str_replace("{{{#!folding ".$foldopentemp.$foldingdatatemp."#!end}}}", "_(FOLDINGSTART)_".$md5."_(FOLDINGSTART2)_ _(FOLDINGDATA)_".$md5."_(FOLDINGDATA2)_ _(FOLDINGEND)_", $str);
 			}
 		}
-		
-		// [datetime] [PageCount] 지원
-		$str = str_replace("[datetime]", date("Y-m-d H:i:s"), $str);
 		
 		// MySQLWikiPage와는 달리 PlainWikiPage의 첫 번째 인수로 위키텍스트를 받습니다.
 		$wPage = new PlainWikiPage($str);

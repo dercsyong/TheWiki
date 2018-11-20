@@ -744,6 +744,9 @@ class NamuMark {
 				$j+=strlen($innerstr)-1;
 				continue;
 			} else {
+				if(substr($line, 4, 6)=='#!wiki'){
+					return '<div '.htmlspecialchars_decode(substr($line, 11)).'>_(#!WIKIMARK)_';
+				}
 				if(preg_match('/^{{{#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}) (.*)$/', $line, $match)) {
 					if(count(explode("}}}", $match[0]))<=1){
 						$this->color_temp_line[] = $line;
@@ -782,6 +785,17 @@ class NamuMark {
 			$html = htmlspecialchars_decode($html);
 			$html = self::inlineHtml($html);
 			return $html;
+		}
+		if(self::startsWithi($text, '#!wiki') && preg_match('/([^\n]*)\n(((((.*)(\n)?)+)))/', substr($text, 7), $match)) {
+			$wPage2 = new PlainWikiPage($match[2]);
+			$child = new NamuMark($wPage2);
+			$child->prefix = $this->prefix;
+			$child->imageAsLink = $this->imageAsLink;
+			$child->wapRender = $this->wapRender;
+			$child->included = true;
+			$twPrint = $child->toHtml();
+			
+			return '<div '.htmlspecialchars_decode($match[1]).'>'.htmlspecialchars_decode($twPrint).'</div>';
 		}
 		return '<pre><code>'.substr($text, 1).'</code></pre>';
 	}
@@ -938,6 +952,8 @@ class NamuMark {
 				return $row['result'];
 			case 'date':
 				return date('Y-m-d H:i:s');
+			case 'datetime':
+				return date('Y-m-d H:i:s');
 			case '목차':
 			case 'tableofcontents':
 				return $this->printToc();
@@ -1005,12 +1021,39 @@ class NamuMark {
 					// themark 통합
 					$arr['text'] = simplemark($arr['text']);
 					
+					// #!folding 문법 #!end}}} 치환
+					$foldingstart = explode('{{{#!folding ', $arr['text']);
+					for($z=1;$z<count($foldingstart);$z++){
+						$foldingcheck = true;
+						$find = '';
+						$match = '';
+						$temp_explode = '';
+						
+						if(count(explode("}}}", $foldingstart[$z]))>1){
+							$temp_explode = explode("}}}", $foldingstart[$z]);
+							
+							$end_loop = 0;
+							while(count($temp_explode)>$end_loop){
+								if(count(explode('{{{', $temp_explode[$end_loop]))>1){
+									$end_loop++;
+								} else {
+									for($x=0;$end_loop>$x;$x++){
+										$match .= $temp_explode[$x].'}}}';
+									}
+									$find = $match.$temp_explode[$end_loop].'}}}';
+									$match .= $temp_explode[$end_loop].'#!end}}}';
+									$end_loop = count($temp_explode)+1;
+								}
+							}
+							
+							$arr['text'] = str_replace('{{{#!folding '.$find, '{{{#!folding '.$match, $arr['text']);
+						}
+					}
 					// #!folding 문법 우선 적용
 					$foldingstart = explode('{{{#!folding ', $arr['text']);
 					for($z=1;$z<count($foldingstart);$z++){
 						$foldingcheck = true;
-						$foldopentemp = reset(explode("
-", $foldingstart[$z]));
+						$foldopentemp = reset(explode("\n", $foldingstart[$z]));
 						if(count(explode("#!end}}}", $foldingstart[$z]))>1){
 							$foldingtemp = str_replace("#!end}}}", "_(FOLDINGEND)_", $foldingstart[$z]);
 							$foldingdatatemp = next(explode($foldopentemp, reset(explode("_(FOLDINGEND)_", $foldingtemp))));

@@ -1,6 +1,5 @@
 <?php
 	session_start();
-	header("Content-Type: text/html; charset=UTF-8");
 	
 	if($_GET['w']=='!MyPage'){
 		die(header("Location: /settings"));
@@ -66,6 +65,7 @@
 	$_POST = null;
 	
 	if($api_result->status!='success'){
+		header("Content-Type: text/html; charset=UTF-8");
 		if($api_result->reason=='main db error'){
 			die('<script> alert("메인 DB 서버에 접속할 수 없습니다.\\n주요 기능이 동작하지 않습니다."); </script>');
 		} else if($api_result->reason=='please check document title'){
@@ -80,11 +80,18 @@
 	}
 	
 	if($api_result->type=='refresh'){
+		header("Content-Type: text/html; charset=UTF-8");
 		die('<script> location.href="'.str_replace('/w/', '/raw/', $api_result->link).'"; </script>');
 	}
 	
 	if(defined("isdeleted")){
+		header("Content-Type: text/html; charset=UTF-8");
 		$api_result->data = '';
 	}
+	
+	if(!empty($api_result->data)){
+		header("Content-Type: text/plain; charset=UTF-8");
+	}
+	
 	die('<xmp>'.$api_result->data.'</xmp>');
 ?>
