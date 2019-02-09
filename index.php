@@ -1,10 +1,6 @@
 <?php
 	session_start();
 	
-	if(empty($_GET['w'])){
-		$_GET['w'] = 'TheWiki:홈';
-	}
-	
 	if(substr($_GET['w'], -10)=="?skin=dark"){
 		header('HTTP/1.0 403 Forbidden');
 		die('403 forbidden');
@@ -26,67 +22,50 @@
 			$res = mysqli_query($config_db, $sql);
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
-				$sql = "INSERT INTO settings(`ip`, `docVersion`, `docAutoLoad`, `imgAutoLoad`) VALUES ";
+				$sql = "INSERT INTO settings(`ip`, `docVersion`, `docStrikeLine`, `imgAutoLoad`) VALUES ";
 				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '180326', '1', '1')";
 				mysqli_query($config_db, $sql);
 			}
 			
+			$imgAutoLoad = 0;
+			$enableAds = 1;
 			switch($_GET['autover']){
 				case '180925_alphawiki':
 					$docVersion = 180925;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '170327':
 					$docVersion = 170327;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '161031':
 					$docVersion = 161031;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '160829':
 					$docVersion = 160829;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '160728':
 					$docVersion = 160728;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '160627':
 					$docVersion = 160627;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '160530':
 					$docVersion = 160530;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '160425':
 					$docVersion = 160425;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '160329':
 					$docVersion = 160329;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				case '160229':
 					$docVersion = 160229;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
 					break;
 				default:
+					$imgAutoLoad = 1;
 					$docVersion = 180326;
 			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docAutoLoad = '1', imgAutoLoad = '1', enableAds = '1', enableViewCount = '1', enableNotice = '1' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
+			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '1', imgAutoLoad = '1', enableAds = '1', enableViewCount = '1', enableNotice = '1' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
 			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /w/TheWiki:홈"));
@@ -96,7 +75,7 @@
 			$res = mysqli_query($config_db, $sql);
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
-				$sql = "INSERT INTO settings(`ip`, `docVersion`, `docAutoLoad`, `imgAutoLoad`) VALUES ";
+				$sql = "INSERT INTO settings(`ip`, `docVersion`, `docStrikeLine`, `imgAutoLoad`) VALUES ";
 				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '180326', '1', '1')";
 				mysqli_query($config_db, $sql);
 			}
@@ -118,12 +97,12 @@
 				default:
 					$enableNotice = 0;
 			}
-			switch($_POST['docAL']){
-				//case 'on':
-				//	$docAutoLoad = 1;
-				//	break;
+			switch($_POST['docSL']){
+				case 'on':
+					$docStrikeLine = 1;
+					break;
 				default:
-					$docAutoLoad = 1;
+					$docStrikeLine = 0;
 			}
 			switch($_POST['imgAL']){
 				case 'on':
@@ -132,6 +111,7 @@
 				default:
 					$imgAutoLoad = 0;
 			}
+			
 			switch($_POST['docVersion']){
 				case '180925_alphawiki':
 					$docVersion = 180925;
@@ -194,7 +174,7 @@
 					$enableViewCount = 0;
 			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docAutoLoad = '$docAutoLoad', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
+			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
 			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /settings"));
@@ -208,7 +188,7 @@
 		die(header('Location: /w/TheWiki:홈'));
 	}
 	$w = $_GET['w'];
-	
+	$queueV2 = true;
 	if(count(explode(":", $_GET['w']))>1){
 		$tp = explode(":", $_GET['w']);
 		switch($tp[0]){
@@ -249,6 +229,7 @@
 		
 		}
 		if($namespace>0){
+			$queueV2 = false;
 			$w = str_replace($tp[0].":", "", implode(":", $tp));
 		}
 	}
@@ -352,16 +333,34 @@
 							Data = JSON.parse(Data);
 							if(Data.result.status=="success"){
 								$("#userDiscussAlert").html('대기열에 추가했습니다. 곧 문서가 갱신됩니다.');
+								alert('대기열에 추가했습니다. 곧 문서가 갱신됩니다.');
 							} else {
 								$("#userDiscussAlert").html('대기열에 추가하지 못했습니다. 같은 문제가 지속되면 <a href="/request/">기술지원</a>을 요청해보세요.');
+								alert('대기열에 추가하지 못했습니다.');
+								addque = true;
+							}
+						});
+					}
+				});
+				
+				$("#addquev2").click(function(){
+					if(addque){
+						addque = false;
+						$.get("/queuev2/"+urlencode('<?=$_GET['w']?>'), function(Data){
+							Data = JSON.parse(Data);
+							if(Data.result.status=="success"){
+								$("#addquev2").css('display','none');
+								$("#userDiscussAlert").html('대기열에 추가했습니다. 곧 문서가 갱신됩니다.');
+								alert('대기열에 추가했습니다. 곧 문서가 갱신됩니다.');
+							} else {
+								$("#userDiscussAlert").html('대기열에 추가하지 못했습니다. 같은 문제가 지속되면 <a href="/request/">기술지원</a>을 요청해보세요.');
+								alert('대기열에 추가하지 못했습니다.');
 								addque = true;
 							}
 						});
 					}
 				});
 			});
-			
-			
 		</script>
 <?php if($settings['enableViewCount']){ ?>
 		<script type="text/javascript">
@@ -384,115 +383,7 @@
 		<script type="text/javascript" src="/namuwiki/js/layout.js?e4665c6b"></script>
 		<div class="navbar-wrapper">
 			<nav class="navbar navbar-dark bg-inverse navbar-static-top">
-				<a class="navbar-brand wiki-logo" href="/w/TheWiki:홈"></a>
-				<ul class="nav navbar-nav">
-					<li class="nav-item">
-						<a class="nav-link" itemprop="url" target="_top" href="/Recent" title="최근 변경">
-							<span class="icon ion-compass"></span>
-							<span class="icon-title">최근 변경</span>
-						</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" itemprop="url" target="_top" href="/RecentDiscuss" title="최근 토론">
-							<span class="icon ion-android-textsms"></span>
-							<span class="icon-title">최근 토론</span>
-						</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" itemprop="url" target="_top" href="/Random" title="랜덤 문서">
-							<span class="icon ion-shuffle"></span>
-							<span class="icon-title">랜덤 문서</span>
-						</a>
-					</li>
-					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" title="특수 기능" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
-							<span class="icon ion-ios-gear"></span>
-							<span class="icon-title">특수 기능</span>
-						</a>
-						<div class="dropdown-menu right">
-							<a class="dropdown-item" itemprop="url" href="/request/">
-								<span class="icon ion-help"></span>
-								<span class="icon-title">기술 지원</span>
-							</a>
-							<a class="dropdown-item" href="/Upload.php">
-								<span class="icon ion-android-upload"></span>
-								<span class="icon-title">파일 올리기</span>
-							</a>
-							<a class="dropdown-item" target="_blank" href="/LICENSE">
-								<span class="icon ion-pricetag"></span>
-								<span class="icon-title">라이선스</span>
-							</a>
-						</div>
-					</li>
-					<li class="nav-item">
-					</li>
-<?php		if($_SESSION['job']!=""){ ?>
-					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" title="ADMIN" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
-							<span class="icon ion-person"></span>
-							<span class="icon-title">ADMIN</span>
-							<span class="caret"></span>
-						</a>
-						<div class="dropdown-menu right">
-							<a class="dropdown-item" href="/admin/block">
-								<span class="icon ion-locked"></span>
-								<span class="icon-title">계정 차단</span>
-							</a>
-						</div>
-					</li>
-<?php		} ?>
-				</ul>
-				<ul class="nav navbar-nav pull-right">
-					<li class="nav-item dropdown user-menu-parent">
-						<a class="nav-link dropdown-toggle user-menu" href="#" title="Member Menu" data-toggle="dropdown" aria-haspopup="true">
-<?php					if($_SESSION['name']!=""){
-							if($_SESSION['email']==""){ $sql = "SELECT * FROM wiki_user WHERE name = '$_SESSION[name]' LIMIT 1"; $res = mysqli_query($wiki_db, $sql); $asr = mysqli_fetch_array($res); $_SESSION['email'] = $asr['email']; } $gravatar = md5(trim($_SESSION['email'])); ?>
-							<img class="user-img" src="//secure.gravatar.com/avatar/<?=$gravatar?>?d=retro">
-<?php					} else { ?>
-							<span class="icon ion-person"></span>
-<?php					} ?>
-						</a>
-						<div class="dropdown-menu user-dropdown right">
-<?php					if($_SESSION['name']!=""){ ?>
-							<div class="dropdown-item user-info">
-								<div class="user-info">
-									<div><?=$_SESSION['name']?></div>
-									<div><?=$_SESSION['job']?></div>
-								</div>
-							</div>
-							<div class="dropdown-divider"></div>
-							<a class="dropdown-item" itemprop="url" href="/settings">설정</a>
-							<a class="dropdown-item" href="/MyPage.php">계정 설정</a>
-							<div class="dropdown-divider"></div>
-							<a class="dropdown-item" href="/w/내문서:<?=$_SESSION['name']?>">내 문서</a>
-							<a class="dropdown-item" href="/userinfo/<?=$_SESSION['name']?>/contributions">문서 기여 목록</a>
-							<a class="dropdown-item" href="/userinfo/<?=$_SESSION['name']?>/discuss">토론 기여 목록</a>
-							<div class="dropdown-divider"></div>
-							<a class="dropdown-item" href="/logout">로그아웃</a>
-<?php					} else { ?>
-							<div class="dropdown-item user-info">
-								<div class="user-info">
-									<div><?=$_SERVER['REMOTE_ADDR']?></div>
-									<div>Viewer</div>
-								</div>
-							</div>
-							<div class="dropdown-divider"></div>
-							<a class="dropdown-item" itemprop="url" href="/settings">설정</a>
-							<a class="dropdown-item" href="/login.php">로그인</a>
-<?php					} ?>
-						</div>
-					</li>
-				</ul>
-				<form class="form-inline navbar-form search-box-parent">
-					<div class="input-group search-box">
-						<input type="text" id="searchInput" class="form-control" placeholder="Search" tabindex="1">
-						<span class="input-group-btn right-search-btns">
-							<button id="goBtn" class="btn btn-secondary" type="button">
-								<span class="icon ion-arrow-right-c"></span>
-							</button>
-						</span>
-					</div>
-				</form>
+				<?=$THEWIKI_NAV?>
 			</nav>
 		</div>
 		<div class="content-wrapper">
@@ -583,7 +474,16 @@
 	
 		if($settings['enableAds']){ ?>
 				<p>
-					<!-- 광고영역 -->
+					<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+					<!-- nisdisk_wiki_resize -->
+					<ins class="adsbygoogle"
+					     style="display:block"
+					     data-ad-client="ca-pub-8464541176962266"
+					     data-ad-slot="9686294634"
+					     data-ad-format="auto"></ins>
+					<script>
+					(adsbygoogle = window.adsbygoogle || []).push({});
+					</script>
 				</p>
 <?php	}
 	
@@ -613,11 +513,16 @@
 					<div class="btn-group" role="group">
 <?php				if($contribution!='기여자 정보가 없습니다'){ ?>
 						<a class="btn btn-secondary" href="#bottom" onclick="alert('<?=$contribution?>'); return false;" role="button">기여자 내역</a>
+<?php				}
+					if($queueV2&&empty($_SESSION['name'])){ ?>
+						<a class="btn btn-secondary" id="addquev2" role="button">문서 갱신</a>
 <?php				} ?>
 						<a class="btn btn-secondary" itemprop="url" href="/backlink/<?=str_replace("%2F", "/", rawurlencode($_GET['w']))?>" role="button">역링크</a>
 						<a class="btn btn-secondary" itemprop="url" href="/history/<?=str_replace("%2F", "/", rawurlencode($_GET['w']))?>" role="button">수정 내역</a>
+<?php				if($_SESSION['name']!=''){ ?>
 						<a class="btn btn-secondary" itemprop="url" href="/edit/<?=str_replace("%2F", "/", rawurlencode($_GET['w']))?>" role="button">편집</a>
 						<a class="btn btn-secondary" itemprop="url" href="/discuss/<?=str_replace("%2F", "/", rawurlencode($_GET['w']))?>/0" role="button">토론</a>
+<?php				} ?>
 					</div>
 				</div>
 			<?php } ?>
@@ -664,14 +569,6 @@
 									</select>
 								</div>
 								
-								<div class="form-group" id="documentAutoLoad">
-									<label class="control-label">자동으로 include 문서 읽기</label>
-									<div class="checkbox">
-										<label>
-											<input type="checkbox" name="docAL" checked disabled> 사용
-										</label>
-									</div>
-								</div>
 								<div class="form-group" id="imagesAutoLoad">
 									<label class="control-label">자동으로 이미지 읽기</label>
 									<div class="checkbox">
@@ -711,6 +608,15 @@
 									<div class="checkbox">
 										<label>
 											<input type="checkbox" name="ViewCount" <?php if($settings['enableViewCount']){ echo "checked"; }?>> 사용
+										</label>
+									</div>
+								</div>
+								
+								<div class="form-group" id="documentStrikeLine">
+									<label class="control-label">취소선 보이기</label>
+									<div class="checkbox">
+										<label>
+											<input type="checkbox" name="docSL" <?php if($settings['docStrikeLine']){ echo "checked"; }?>> 사용
 										</label>
 									</div>
 								</div>
@@ -813,7 +719,14 @@
 		
 		// themark 통합
 		define('USETHEMARK', true);
-		define('THEMARK_IMGLOAD', $settings['imgAutoLoad']);
+		if($settings['docStrikeLine']){
+			define('THEMARK_STRIKELINE', true);
+		}
+		if($namespace=='3'||$namespace=='11'){
+			define('THEMARK_IMGLOAD', 1);
+		} else {
+			define('THEMARK_IMGLOAD', $settings['imgAutoLoad']);
+		}
 		include $_SERVER['DOCUMENT_ROOT'].'/themark.php';
 		
 		echo themark($arr['text']);

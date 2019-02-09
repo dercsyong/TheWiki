@@ -196,7 +196,7 @@ class NamuMark {
 			if(str_replace("http://thewiki.ga/w/", "", $_SERVER['HTTP_REFERER'])==str_replace("+", "%20", urlencode($target[1]))||str_replace("https://thewiki.ga/w/", "", $_SERVER['HTTP_REFERER'])==str_replace("+", "%20", urlencode($target[1]))){
 				return '흐음, 잠시만요. <b>같은 문서끼리 리다이렉트 되고 있는 것 같습니다!</b><br>다음 문서중 하나를 수정하여 문제를 해결할 수 있습니다.<hr><a href="/history/'.self::encodeURI($target[1]).'" target="_blank">'.$target[1].'</a><br><a href="/history/'.str_replace("+", "%20", urlencode($_GET['w'])).'" target="_blank">'.$_GET['w'].'</a><hr>문서를 수정했는데 같은 문제가 계속 발생하나요? <a href="'.self::encodeURI($target[1]).'"><b>여기</b></a>를 확인해보세요!';
 			} else {
-				return 'Redirection... <script> top.location.href = "/w/'.self::encodeURI($target[1]).'"; </script>';
+				return 'Redirection...'.$target[1].'<script> top.location.href = "/w/'.self::encodeURI($target[1]).'"; </script>';
 			}
 		}
 
@@ -699,7 +699,7 @@ class NamuMark {
 						}
 					}
 					$paramtxt .= ($csstxt!=''?' style="'.$csstxt.'"':'');
-					//$innerstr = '<img src="'.$match[1].'"'.$paramtxt.'>';
+					$innerstr = '<img src="'.$match[1].'"'.$paramtxt.'>';
 				}
 				$line = substr($line, 0, $j).$innerstr.substr($line, $j+strlen($match[0]));
 				$line_len = strlen($line);
@@ -859,12 +859,13 @@ class NamuMark {
 				$google_photos_check = fopen("../files/".$hash.".".$ext, "r");
 				$google_photos = fread($google_photos_check, 158);
 				fclose($google_photos_check);
-				if(substr($google_photos, 0, 8)=="https://"){
+				if(substr($google_photos, 0, 4)=="http"){
 					return '<img src="'.$google_photos.'" '.trim(str_replace('style="', 'style="cursor:hand; ', $paramtxt)).'>';
 				} else {
 					return '<img src="/files/'.$hash.'.'.$ext.'" '.trim(str_replace('style="', 'style="cursor:hand; ', $paramtxt)).'>';
 				}
 			}
+			
 			$img = "SELECT * FROM file WHERE name = binary('$category[0]') LIMIT 1";
 			$imgres = mysqli_query($config_db, $img);
 			$imgarr = mysqli_fetch_array($imgres);
@@ -1170,6 +1171,9 @@ class NamuMark {
 				return '<em>'.$text.'</em>';
 			case '--':
 			case '~~':
+				if($this->strikeLine){
+					$text = '';
+				}
 				return '<del>'.$text.'</del>';
 			case '__':
 				return '<u>'.$text.'</u>';
