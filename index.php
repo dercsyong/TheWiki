@@ -652,119 +652,64 @@
 	
 	if($arr['text']!=""){
 		// 분류 문서
-		if($namespace=="2"&&$settings['docVersion']==$settingsref['docVersion']){
-			$sql = "SELECT * FROM category WHERE target = '$w'";
-			$res = mysqli_query($config_db, $sql);
-			$arr_category = mysqli_fetch_array($res);
-			
-			$root_directory = explode(",", $arr_category['root']);
-			$list_document = explode(",", $arr_category['title']);
-			
-			$sql = "SELECT * FROM category WHERE target != '$w' AND root LIKE '%".$w."%'";
-			$res = mysqli_query($config_db, $sql);
-			while($arr_root=mysqli_fetch_array($res)){
-				$x++;
-				$low_directory[$x] = $arr_root['target'];
-			}
-			
-			$arr2 = "= 관련 분류 =
-";
-			foreach($low_directory as $key=>$value){
-				if($value!=""&&$value!=$w){
-					$value = str_replace("_(NISDISKBAN)_", ",", $value);
-					$unique_check[] = "분류:".$value;
-				}
-			}
-			
-			foreach($root_directory as $key => $value){
-				if($value!=""&&$value!=$w){
-					$value = str_replace("_(NISDISKBAN)_", ",", $value);
-					$unique_check[] = $value;
-				}
-			}
-			$unique_check = array_unique($unique_check);
-			
-			foreach($unique_check as $value){
-				$arr2 = $arr2."[[:".$value."]]{{{#!html <br>}}}";
-			}
-			$arr2 = $arr2."
-= 분류된 문서 =
-";
-			foreach($list_document as $key=>$value){
-				$value = str_replace("_(NISDISKBAN)_", ",", $value);
-				$tp = explode(":", $value);
-				if($tp[0]=="파일"){
-					$value = ":".$value;
-				}
-				if($tp[0]=="틀"||mb_substr($value, 0, 1, "UTF-8")=="틀"){
-					if(mb_substr($value, 1, 1, "UTF-8")!=":"){
-						$value = "틀:".mb_substr($value, 1, mb_strlen($value, "UTF-8"), "UTF-8");
+		if($namespace=="2"){
+			try{
+				$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+				$query = array("title"=>"분류:".$w);
+				$query = new MongoDB\Driver\Query($query);
+				$print = $mongo2->executeQuery('thewiki.category'.$settings['docVersion'], $query);
+				foreach($print as $value){
+					$arr2 = "= 상위 분류 =\n";
+					foreach($value->up as $topCa){
+						$arr2 .= "[[:".$topCa."]]\n";
+					}
+					$arr2 .= "= 하위 분류 =\n";
+					foreach($value->btm as $btmCa){
+						$arr2 .= "[[:".$btmCa."]]\n";
+					}
+					$arr2 .= "= 포함된 문서 =\n";
+					foreach($value->includeDoc as $inDoc){
+						$arr2 .= "[[".$inDoc."]]\n";
 					}
 				}
-				if($tp[0]!="분류"&&$tp[0]!="사용자"){
-					$arr2 = $arr2."[[".$value."]]{{{#!html <br>}}}";
-				}
+			} catch (MongoDB\Driver\Exception\Exception $e){
+				$arr2 = "{{{+2 mongoDB 서버에 접속할 수 없습니다}}}";
 			}
-			$arr['text'] = $arr2."
-= 분류 설명 =
-".$arr[text];
+			
+			$arr['text'] = $arr2."\n= 분류 설명 =\n".$arr['text'];
 		}
 		
-		// noredirect 지원
+		require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
+		$theMark = new theMark($arr['text']);
 		if($noredirect){
-			define('noredirect', true);
+			$theMark->redirect = false;
+		}
+		if(!$settings['docStrikeLine']){
+			$theMark->strikeLine = true;
+		}
+		if($namespace=='3'||$namespace=='11'||$settings['imgAutoLoad']=='0'){
+			$theMark->imageAsLink = false;
 		}
 		
-		require_once($_SERVER['DOCUMENT_ROOT']."/namumark.php");
-		
-		// themark 통합
-		define('USETHEMARK', true);
-		if($settings['docStrikeLine']){
-			define('THEMARK_STRIKELINE', true);
-		}
-		if($namespace=='3'||$namespace=='11'){
-			define('THEMARK_IMGLOAD', 1);
-		} else {
-			define('THEMARK_IMGLOAD', $settings['imgAutoLoad']);
-		}
-		include $_SERVER['DOCUMENT_ROOT'].'/themark.php';
-		
-		echo themark($arr['text']);
+		echo $theMark->toHtml();
 	} else {
 		if($namespace=="11"){
 			$sql = "SELECT * FROM file WHERE name = '$_GET[w]'";
 			$res = mysqli_query($config_db, $sql);
 			$cnt = mysqli_num_rows($res);
 			if($cnt>0){
-				require_once($_SERVER['DOCUMENT_ROOT']."/namumark.php");
+				require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
 				$arr['text'] = "[[".$_GET['w']."]]";
-				// MySQLWikiPage와는 달리 PlainWikiPage의 첫 번째 인수로 위키텍스트를 받습니다.
-				$wPage = new PlainWikiPage($arr['text']);
+				$theMark = new theMark($arr['text']);
 				
-				// NamuMark 생성자는 WikiPage를 인수로 받습니다.
-				$wEngine = new NamuMark($wPage);
-				
-				// 위키링크의 앞에 붙을 경로를 prefix에 넣습니다.
-				$wEngine->prefix = "/w";
-				$wPrint = $wEngine->toHtml();
-				echo $wPrint;
+				echo $theMark->toHtml();
 			} else { ?>
 				업로드된 이미지가 아닙니다.<br><a href='/Upload.php' target='_top'>이미지 업로드</a></div></div><?=$THEWIKI_FOOTER?></article></div></body></html>
 <?php			die();
 			}
 		}
-?><script>
-  (function() {
-    var cx = 'partner-pub-8464541176962266:7351409120';
-    var gcse = document.createElement('script');
-    gcse.type = 'text/javascript';
-    gcse.async = true;
-    gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
-    var s = document.getElementsByTagName('script')[0];
-    s.parentNode.insertBefore(gcse, s);
-  })();
-</script>
-<gcse:searchbox-only></gcse:searchbox-only>
+?>
+<!-- 구글 광고 영역 -->
 <?php
 		$cURLs = "http://ac.search.naver.com/nx/ac?_callback=result&q=".rawurlencode($_GET['w'])."&q_enc=UTF-8&st=100&frm=nv&r_format=json&r_enc=UTF-8&r_unicode=0&t_koreng=1&ans=1";
 		$ch = curl_init();
@@ -796,7 +741,6 @@
 ?>
 					</div>
 				</div>
-			
 				<?=$THEWIKI_FOOTER?>
 			</article>
 		</div>

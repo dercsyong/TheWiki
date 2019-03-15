@@ -1,16 +1,19 @@
 # UnofficialNamuMirror
-Á¤¸» ´Ü¼øÇÏ°Ô ³ª¹«À§Å°ÀÇ µ¥ÀÌÅÍº£ÀÌ½º ´ýÇÁ¸¦ ÀÌ¿ëÇÏ¿©<br>
-'ÀÐ±âÀü¿ë' ¹Ì·¯ ÆäÀÌÁö·Î ÀÌ¿ë °¡´ÉÇÑ ¼Ò½ºÀÔ´Ï´Ù.<br>
-namumark°¡ »ó´çÈ÷ ¿À·¡Àü¿¡ °ø°³µÇ¾ú°í, ±×µ¿¾È ¹®¹ýÀÌ ¿©·¯¹ø ¹Ù²î¾ú±â ¶§¹®¿¡<br>
-Á¤»óÀÛµ¿À» º¸ÁõÇÏÁö ¾Ê½À´Ï´Ù.<br><br>
-Á¦°¡ github¿¡ ÀÚÁÖ Á¢¼ÓÇÏÁö ¾Ê±â ¶§¹®¿¡ ÀÌ½´º¸°í´Â githubº¸´Ù´Â ¾Æ·¡ ¸µÅ©¿¡¼­ ÇØÁÖ½Ã´Â°Ô ÁÁ½À´Ï´Ù.<br>
+ì •ë§ ë‹¨ìˆœí•˜ê²Œ ë‚˜ë¬´ìœ„í‚¤ì˜ ë°ì´í„°ë² ì´ìŠ¤ ë¤í”„ë¥¼ ì´ìš©í•˜ì—¬<br>
+'ì½ê¸°ì „ìš©' ë¯¸ëŸ¬ íŽ˜ì´ì§€ë¡œ ì´ìš© ê°€ëŠ¥í•œ ì†ŒìŠ¤ìž…ë‹ˆë‹¤.<br>
+namumarkê°€ ìƒë‹¹ížˆ ì˜¤ëž˜ì „ì— ê³µê°œë˜ì—ˆê³ , ê·¸ë™ì•ˆ ë¬¸ë²•ì´ ì—¬ëŸ¬ë²ˆ ë°”ë€Œì—ˆê¸° ë•Œë¬¸ì—<br>
+ì •ìƒìž‘ë™ì„ ë³´ì¦í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.<br><br>
+ì œê°€ githubì— ìžì£¼ ì ‘ì†í•˜ì§€ ì•Šê¸° ë•Œë¬¸ì— ì´ìŠˆë³´ê³ ëŠ” githubë³´ë‹¤ëŠ” ì•„ëž˜ ë§í¬ì—ì„œ í•´ì£¼ì‹œëŠ”ê²Œ ì¢‹ìŠµë‹ˆë‹¤.<br>
 http://thewiki.ga/request/<br>
 Email : dercsyong@thewiki.ga<br><br>
-# ¼­¹ö È¯°æ
-ver 3.x ºÎÅÍ´Â ´ÙÀ½ ¼­¹ö È¯°æ¿¡¼­ µ¿ÀÛÇÏµµ·Ï ¼öÁ¤µÇ¾ú½À´Ï´Ù.<hr>
+# 3.1.x ì´í›„ ë²„ì „
+ver 3.1.x ë¶€í„°ëŠ” namumarkë¥¼ ì¼ë¶€ ìˆ˜ì •í•œ theMarkë¥¼ ì‚¬ìš©í•˜ê¸° ë•Œë¬¸ì— namumarkë¥¼ ì‚¬ìš©í•˜ì‹œë ¤ë©´ 3.0.5 ì´í•˜ ë²„ì „ì„ ì°¸ê³ í•´ì„œ ìˆ˜ì •í•´ì•¼ í•©ë‹ˆë‹¤.<br>
+theMark : https://github.com/dercsyong/TheMarkProject
+# ì„œë²„ í™˜ê²½
+ver 3.x ë¶€í„°ëŠ” ë‹¤ìŒ ì„œë²„ í™˜ê²½ì—ì„œ ë™ìž‘í•˜ë„ë¡ ìˆ˜ì •ë˜ì—ˆìŠµë‹ˆë‹¤.<hr>
 nginx + php-fpm<br>
-PHP 7.x ÀÌ»ó<br>
-mongoDB 3.4.x ¹× mongoDB Driver v1.5 ÀÌ»ó<hr>
-mongoDB Driver ¹®Á¦·Î µ¿ÀÛÇÏÁö ¾Ê´Â °æ¿ì ver 2.x Âü°íÇØ¼­ ¼öÁ¤ÇØ¾ß ÇÕ´Ï´Ù.<br><br>
-# ´ýÇÁ ÆÄÀÏ (json ¹× sql)
+PHP 7.x ì´ìƒ<br>
+mongoDB 3.4.x ë° mongoDB Driver v1.5 ì´ìƒ<hr>
+mongoDB Driver ë¬¸ì œë¡œ ë™ìž‘í•˜ì§€ ì•ŠëŠ” ê²½ìš° ver 2.x ì°¸ê³ í•´ì„œ ìˆ˜ì •í•´ì•¼ í•©ë‹ˆë‹¤.<br><br>
+# ë¤í”„ íŒŒì¼ (json ë° sql)
 http://dump.thewiki.ga
