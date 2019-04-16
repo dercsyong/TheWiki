@@ -23,7 +23,7 @@
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
 				$sql = "INSERT INTO settings(`ip`, `docVersion`, `docStrikeLine`, `imgAutoLoad`) VALUES ";
-				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '180326', '1', '1')";
+				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]', '1', '1')";
 				mysqli_query($config_db, $sql);
 			}
 			
@@ -33,36 +33,13 @@
 				case '180925_alphawiki':
 					$docVersion = 180925;
 					break;
-				case '170327':
-					$docVersion = 170327;
-					break;
-				case '161031':
-					$docVersion = 161031;
-					break;
-				case '160829':
-					$docVersion = 160829;
-					break;
-				case '160728':
-					$docVersion = 160728;
-					break;
-				case '160627':
-					$docVersion = 160627;
-					break;
-				case '160530':
-					$docVersion = 160530;
-					break;
-				case '160425':
-					$docVersion = 160425;
-					break;
-				case '160329':
-					$docVersion = 160329;
-					break;
-				case '160229':
-					$docVersion = 160229;
+				case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229':
+					$docVersion = $_GET['autover'];
 					break;
 				default:
 					$imgAutoLoad = 1;
-					$docVersion = 180326;
+					$docVersion = $settingsref['docVersion'];
+					break;
 			}
 			
 			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '1', imgAutoLoad = '1', enableAds = '1', enableViewCount = '1', enableNotice = '1' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
@@ -76,7 +53,7 @@
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
 				$sql = "INSERT INTO settings(`ip`, `docVersion`, `docStrikeLine`, `imgAutoLoad`) VALUES ";
-				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '180326', '1', '1')";
+				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]', '1', '1')";
 				mysqli_query($config_db, $sql);
 			}
 			
@@ -118,53 +95,14 @@
 					$imgAutoLoad = 0;
 					$enableAds = 1;
 					break;
-				case '170327':
-					$docVersion = 170327;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
-					break;
-				case '161031':
-					$docVersion = 161031;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
-					break;
-				case '160829':
-					$docVersion = 160829;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
-					break;
-				case '160728':
-					$docVersion = 160728;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
-					break;
-				case '160627':
-					$docVersion = 160627;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
-					break;
-				case '160530':
-					$docVersion = 160530;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
-					break;
-				case '160425':
-					$docVersion = 160425;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
-					break;
-				case '160329':
-					$docVersion = 160329;
-					$imgAutoLoad = 0;
-					$enableAds = 1;
-					break;
-				case '160229':
-					$docVersion = 160229;
+				case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229':
+					$docVersion = $_POST['docVersion'];
 					$imgAutoLoad = 0;
 					$enableAds = 1;
 					break;
 				default:
-					$docVersion = 180326;
+					$docVersion = $settingsref['docVersion'];
+					break;
 			}
 			switch($_POST['ViewCount']){
 				case 'on':
@@ -307,9 +245,8 @@
 		</script>
 		<script type="text/javascript">
 			$(document).ready(function(){
-<?php
-			if($settings['docVersion']!='180326'){ ?>
-				$("#userDiscussAlert").html('현재 <?=$settings['docVersion']?>버전 덤프를 사용중이며, 로딩이 불안정할 수 있습니다. &nbsp; &nbsp; =><a href="/w/?settings=1&autover=180326">안정 버전 사용</a>');
+<?php		if($settings['docVersion']!=$settingsref['docVersion']){ ?>
+				$("#userDiscussAlert").html('현재 <?=$settings['docVersion']?>버전 덤프를 사용중이며, 로딩이 불안정할 수 있습니다. &nbsp; &nbsp; =><a href="/w/?settings=1&autover=<?=$settingsref['docVersion']?>">안정 버전 사용</a>');
 <?php		} else { ?>
 				$("#userDiscussAlert").html('궁금하신 점이 있으신가요? <a href="/request/">기술지원</a>을 요청해보세요.');
 <?php		} ?>
@@ -371,13 +308,6 @@
 			});
 		</script>
 <?php	} ?>
-		<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-		<script>
-		     (adsbygoogle = window.adsbygoogle || []).push({
-		          google_ad_client: "ca-pub-8464541176962266",
-		          enable_page_level_ads: true
-		     });
-		</script>
 	</head>
 	<body class="senkawa hide-sidebar fixed-size fixed-1300">
 		<script type="text/javascript" src="/namuwiki/js/layout.js?e4665c6b"></script>
@@ -392,8 +322,7 @@
 				<div class="alert alert-info fade in last" id="userDiscussAlert" role="alert">
 					Loading... <?=$_GET['w']?>
 				</div>
-<?php
-		}
+<?php	}
 	}
 	
 	if($namespace==""){
@@ -470,32 +399,28 @@
 	// 애드센스 정책
 	if(count(explode("틀:성적요소", $arr['text']))>1){
 		$settings['enableAds'] = false;
+		$settings['enableAdsAdult'] = true;
 	}
 	
+		if(!$settings['enableAdsAdult']){ ?>
+				<!-- 구글 자동광고 영역 -->
+<?php	}
 		if($settings['enableAds']){ ?>
 				<p>
-					<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-					<!-- nisdisk_wiki_resize -->
-					<ins class="adsbygoogle"
-					     style="display:block"
-					     data-ad-client="ca-pub-8464541176962266"
-					     data-ad-slot="9686294634"
-					     data-ad-format="auto"></ins>
-					<script>
-					(adsbygoogle = window.adsbygoogle || []).push({});
-					</script>
+					<!-- 구글 일반광고 영역 -->
 				</p>
 <?php	}
 	
 	if(count(explode("내문서:", $w))>1){
 		$get_admin = explode("내문서:", addslashes($w));
-		$get_admin_job = "SELECT job FROM wiki_admin_list WHERE user = '$get_admin[1]' AND end_date > '$date' LIMIT 1";
-		$get_admin_job_res = mysqli_query($wiki_db, $get_admin_job);
-		$get_admin_job_arr = mysqlI_fetch_array($get_admin_job_res);
+		$date = date('Y-m-d H:i:s');
 		
-		$get_admin_name = "SELECT name FROM wiki_admin_job WHERE job = '$get_admin_job_arr[job]' LIMIT 1";
-		$get_admin_name_res = mysqli_query($wiki_db, $get_admin_name);
-		$get_admin = mysqlI_fetch_array($get_admin_name_res);
+		$get_block_arr = getBlockCHK($get_admin[1]);
+		$get_admin = getAdminCHK($get_admin[1]);
+		
+		if($get_block_arr['expire']>$date){
+			$arr['text'] = '{{{#!html <div class="alert alert-info fade in last" id="userDiscussAlert" role="alert"><p>'.$get_block_arr['expire'].'까지 차단된 계정입니다.<br>사유 : '.$get_block_arr['title'].'</p></div>}}}';
+		}
 	}
 		if($w!="!MyPage"){
 			if(count(explode("내문서:", $w))>1){ ?>
@@ -555,8 +480,9 @@
 								<div class="form-group" id="documentVersion">
 									<label class="control-label">덤프 버전</label>
 									<select class="form-control setting-item" name="docVersion">
+										<option value="190312" <?php if($settings['docVersion']=="190312"){ echo 'selected'; } ?>>20190312 (* 권장)</option>
 										<option value="180925_alphawiki" <?php if($settings['docVersion']=="180925"){ echo 'selected'; } ?>>20180925_alphawiki</option>
-										<option value="180326" <?php if($settings['docVersion']=="180326"){ echo 'selected'; } ?>>20180326 (* 권장)</option>
+										<option value="180326" <?php if($settings['docVersion']=="180326"){ echo 'selected'; } ?>>20180326</option>
 										<option value="170327" <?php if($settings['docVersion']=="170327"){ echo 'selected'; } ?>>20170327</option>
 										<option value="161031" <?php if($settings['docVersion']=="161031"){ echo 'selected'; } ?>>20161031</option>
 										<option value="160829" <?php if($settings['docVersion']=="160829"){ echo 'selected'; } ?>>20160829</option>
@@ -573,7 +499,7 @@
 									<label class="control-label">자동으로 이미지 읽기</label>
 									<div class="checkbox">
 										<label>
-<?php									if($settings['docVersion']!="180326"){ ?>
+<?php									if($settings['docVersion']!=$settingsref['docVersion']){ ?>
 											<input type="checkbox" name="imgAL" id="needads" disabled> <s>사용</s> <small>(비권장 덤프를 사용할 경우 기능 활성화 불가능)</small>
 <?php									} else { ?>
 											<input type="checkbox" name="imgAL" id="needads" <?php if($settings['imgAutoLoad']){ echo "checked"; }?>> 사용
@@ -585,7 +511,7 @@
 									<label class="control-label">광고 보이기</label>
 									<div class="checkbox">
 										<label>
-<?php									if($settings['docVersion']!="180326"){ ?>
+<?php									if($settings['docVersion']!=$settingsref['docVersion']){ ?>
 											<input type="hidden" name="Ads" value="on"><input type="checkbox" name="Ads" id="ads" <?php if($settings['enableAds']){ echo "checked"; }?> disabled> 사용 <small>(비권장 덤프를 사용할 경우 기능 비활성화 불가능)</small>
 <?php									} else { ?>
 											<input type="checkbox" name="Ads" id="ads" onclick="if(!document.settings.ads.checked){ alert('The Wiki는 광고 수익금으로 운영됩니다.\n광고가 너무 거슬린다면 기술지원을 통해 피드백을 부탁드립니다.'); }" <?php if($settings['enableAds']){ echo "checked"; }?>> 사용
@@ -650,35 +576,35 @@
 		$arr['text'] = "[[".$_GET['w']."]]\n".$arr['text'];
 	}
 	
-	if($arr['text']!=""){
-		// 분류 문서
-		if($namespace=="2"){
-			try{
-				$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
-				$query = array("title"=>"분류:".$w);
-				$query = new MongoDB\Driver\Query($query);
-				$print = $mongo2->executeQuery('thewiki.category'.$settings['docVersion'], $query);
-				foreach($print as $value){
-					$arr2 = "= 상위 분류 =\n";
-					foreach($value->up as $topCa){
-						$arr2 .= "[[:".$topCa."]]\n";
-					}
-					$arr2 .= "= 하위 분류 =\n";
-					foreach($value->btm as $btmCa){
-						$arr2 .= "[[:".$btmCa."]]\n";
-					}
-					$arr2 .= "= 포함된 문서 =\n";
-					foreach($value->includeDoc as $inDoc){
-						$arr2 .= "[[".$inDoc."]]\n";
-					}
+	// 분류 문서
+	if($namespace==2){
+		try{
+			$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+			$query = array("title"=>"분류:".$w);
+			$query = new MongoDB\Driver\Query($query);
+			$print = $mongo2->executeQuery('thewiki.category'.$settings['docVersion'], $query);
+			foreach($print as $value){
+				$arr2 = "= 상위 분류 =\n";
+				foreach($value->up as $topCa){
+					$arr2 .= "[[:".$topCa."]]\n";
 				}
-			} catch (MongoDB\Driver\Exception\Exception $e){
-				$arr2 = "{{{+2 mongoDB 서버에 접속할 수 없습니다}}}";
+				$arr2 .= "= 하위 분류 =\n";
+				foreach($value->btm as $btmCa){
+					$arr2 .= "[[:".$btmCa."]]\n";
+				}
+				$arr2 .= "= 포함된 문서 =\n";
+				foreach($value->includeDoc as $inDoc){
+					$arr2 .= "[[".$inDoc."]]\n";
+				}
 			}
-			
-			$arr['text'] = $arr2."\n= 분류 설명 =\n".$arr['text'];
+		} catch (MongoDB\Driver\Exception\Exception $e){
+			$arr2 = "{{{+2 mongoDB 서버에 접속할 수 없습니다}}}";
 		}
 		
+		$arr['text'] = $arr2."\n= 분류 설명 =\n".$arr['text'];
+	}
+	
+	if($arr['text']!=""){
 		require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
 		$theMark = new theMark($arr['text']);
 		if($noredirect){
@@ -709,7 +635,7 @@
 			}
 		}
 ?>
-<!-- 구글 광고 영역 -->
+<!-- 구글 검색광고 영역 -->
 <?php
 		$cURLs = "http://ac.search.naver.com/nx/ac?_callback=result&q=".rawurlencode($_GET['w'])."&q_enc=UTF-8&st=100&frm=nv&r_format=json&r_enc=UTF-8&r_unicode=0&t_koreng=1&ans=1";
 		$ch = curl_init();

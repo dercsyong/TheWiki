@@ -51,24 +51,16 @@
 	}
 	
 	try{
-		$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 		define('THEWIKI', true);
 		include $_SERVER['DOCUMENT_ROOT'].'/config.php';
-		if(!$config_db){
-			$arr = $mongo->executeQuery('thewiki.docData180326', $query);
-		} else {
-			$sql = "SELECT * FROM settings WHERE ip = '$_SERVER[REMOTE_ADDR]'";
-			$res = mysqli_query($config_db, $sql);
-			$cnt = mysqli_num_rows($res);
-			
-			if($cnt){
-				$settings = mysqli_fetch_array($res);
+		if($settings['docVersion']==$settingsref['docVersion']){
+			if($namespace=='0'||$namespace=='1'||$namespace=='6'){
+				$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 			} else {
-				$sql = "SELECT * FROM settings WHERE ip = '0.0.0.0'";
-				$res = mysqli_query($config_db, $sql);
-				$settings = mysqli_fetch_array($res);
+				$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27018/thewiki');
 			}
-			
+		} else {
+			$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27018/thewiki');
 			if($settings['docVersion']=='180925'&&$alpha){
 				if($namespace=='12'){
 					$namespace = '11';
@@ -80,20 +72,21 @@
 					$namespace = 12;
 				}
 			}
-			$query = new MongoDB\Driver\Query(array('namespace' => $namespace, 'title' => array('$regex'=>'^'.$_GET['w'])), array('limit' => 10 ));
-			switch($settings['docVersion']){
-				case '160229': $arr = $mongo->executeQuery('thewiki.docData160229', $query); break;
-				case '160329': $arr = $mongo->executeQuery('thewiki.docData160329', $query); break;
-				case '160425': $arr = $mongo->executeQuery('thewiki.docData160425', $query); break;
-				case '160530': $arr = $mongo->executeQuery('thewiki.docData160530', $query); break;
-				case '160627': $arr = $mongo->executeQuery('thewiki.docData160627', $query); break;
-				case '160728': $arr = $mongo->executeQuery('thewiki.docData160728', $query); break;
-				case '160829': $arr = $mongo->executeQuery('thewiki.docData160829', $query); break;
-				case '161031': $arr = $mongo->executeQuery('thewiki.docData161031', $query); break;
-				case '170327': $arr = $mongo->executeQuery('thewiki.docData170327', $query); break;
-				case '180925': $arr = $mongo->executeQuery('thewiki.docData180925', $query); break;
-				default: $arr = $mongo->executeQuery('thewiki.docData180326', $query); break;
-			}
+		}
+		$query = new MongoDB\Driver\Query(array('namespace' => $namespace, 'title' => array('$regex'=>'^'.$_GET['w'])), array('limit' => 10 ));
+		switch($settings['docVersion']){
+			case '160229': $arr = $mongo->executeQuery('thewiki.docData160229', $query); break;
+			case '160329': $arr = $mongo->executeQuery('thewiki.docData160329', $query); break;
+			case '160425': $arr = $mongo->executeQuery('thewiki.docData160425', $query); break;
+			case '160530': $arr = $mongo->executeQuery('thewiki.docData160530', $query); break;
+			case '160627': $arr = $mongo->executeQuery('thewiki.docData160627', $query); break;
+			case '160728': $arr = $mongo->executeQuery('thewiki.docData160728', $query); break;
+			case '160829': $arr = $mongo->executeQuery('thewiki.docData160829', $query); break;
+			case '161031': $arr = $mongo->executeQuery('thewiki.docData161031', $query); break;
+			case '170327': $arr = $mongo->executeQuery('thewiki.docData170327', $query); break;
+			case '180326': $arr = $mongo->executeQuery('thewiki.docData180326', $query); break;
+			case '180925': $arr = $mongo->executeQuery('thewiki.docData180925', $query); break;
+			default: $arr = $mongo->executeQuery('thewiki.docData190312', $query); break;
 		}
 		
 		$data = array();
