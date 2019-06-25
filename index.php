@@ -22,12 +22,11 @@
 			$res = mysqli_query($config_db, $sql);
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
-				$sql = "INSERT INTO settings(`ip`, `docVersion`, `docStrikeLine`, `imgAutoLoad`) VALUES ";
-				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]', '1', '1')";
+				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
+				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]')";
 				mysqli_query($config_db, $sql);
 			}
 			
-			$imgAutoLoad = 0;
 			$enableAds = 1;
 			switch($_GET['autover']){
 				case '180925_alphawiki':
@@ -37,12 +36,11 @@
 					$docVersion = $_GET['autover'];
 					break;
 				default:
-					$imgAutoLoad = 1;
 					$docVersion = $settingsref['docVersion'];
 					break;
 			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '1', imgAutoLoad = '1', enableAds = '1', enableViewCount = '1', enableNotice = '1' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
+			$sql = "UPDATE settings SET docVersion = '$docVersion', enableAds = '1' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
 			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /w/TheWiki:홈"));
@@ -52,8 +50,8 @@
 			$res = mysqli_query($config_db, $sql);
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
-				$sql = "INSERT INTO settings(`ip`, `docVersion`, `docStrikeLine`, `imgAutoLoad`) VALUES ";
-				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]', '1', '1')";
+				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
+				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]')";
 				mysqli_query($config_db, $sql);
 			}
 			
@@ -92,12 +90,10 @@
 			switch($_POST['docVersion']){
 				case '180925_alphawiki':
 					$docVersion = 180925;
-					$imgAutoLoad = 0;
 					$enableAds = 1;
 					break;
 				case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229':
 					$docVersion = $_POST['docVersion'];
-					$imgAutoLoad = 0;
 					$enableAds = 1;
 					break;
 				default:
@@ -111,17 +107,21 @@
 				default:
 					$enableViewCount = 0;
 			}
+			switch($_POST['docSI']){
+				case 'on':
+					$docShowInclude = 1;
+					break;
+				default:
+					$docShowInclude = 0;
+			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
+			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
 			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /settings"));
 		}
 	}
 	
-	if($_GET['w']=="!ADReport"){
-		$settings['docVersion'] = $settingsref['docVersion'];
-	}
 	if($_GET['w']==''){
 		die(header('Location: /w/TheWiki:홈'));
 	}
@@ -547,6 +547,15 @@
 									</div>
 								</div>
 								
+								<div class="form-group" id="documentShowInclude">
+									<label class="control-label">include된 문서 보이기</label>
+									<div class="checkbox">
+										<label>
+											<input type="checkbox" name="docSI" <?php if($settings['docShowInclude']){ echo "checked"; }?>> 사용
+										</label>
+									</div>
+								</div>
+								
 								<div class="form-group">
 									&nbsp;	<button type="submit" class="btn btn-primary">적용</button>
 								</div>
@@ -616,7 +625,9 @@
 		if($namespace=='3'||$namespace=='11'||$settings['imgAutoLoad']=='0'){
 			$theMark->imageAsLink = false;
 		}
-		
+		if(!$settings['docShowInclude']){
+			$theMark->included = true;
+		}
 		echo $theMark->toHtml();
 	} else {
 		if($namespace=="11"){
