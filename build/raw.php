@@ -1,65 +1,24 @@
 <?php
 	session_start();
 	
-	if($_GET['w']=='!MyPage'){
-		die(header("Location: /settings"));
+	define('THEWIKI', true);
+	$THEWIKI_FOOTER = 0;
+	$THEWIKI_SUBSTRLEN = explode('/', $_SERVER['REQUEST_URI'])[1];
+	include $_SERVER['DOCUMENT_ROOT'].'/config.php';
+	$version = $page;
+	
+	if(empty($THEWIKI_NOW_TITLE_FULL)||empty($THEWIKI_NOW_TITLE_REAL)){
+		die(header('Location: /w/TheWiki:%ED%99%88'));
 	}
 	
-	$w = $_GET['w'];
-	if(count(explode(":", $_GET['w']))>1){
-		$tp = explode(":", $_GET['w']);
-		switch($tp[0]){
-			case '틀':
-				$namespace = '1';
-				break;
-			case '분류':
-				$namespace = '2';
-				break;
-			case '파일':
-				$namespace = '3';
-				break;
-			case '사용자':
-				$namespace = '4';
-				break;
-			case '나무위키':
-				$namespace = '6';
-				break;
-			case '휴지통':
-				$namespace = '8';
-				break;
-			case 'TheWiki':
-				$namespace = '10';
-				break;
-			case '이미지':
-				$namespace = '11';
-				break;
-			case '집단창작':
-				$alpha = true;
-				$namespace = '12';
-				break;
-			case '알파위키':
-				$alpha = true;
-				$namespace = '13';
-				break;
-			default:
-				$namespace = '0';
-		
-		}
-		if($namespace>0){
-			$w = str_replace($tp[0].":", "", implode(":", $tp));
-		}
+	if($version>0){
+		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docReVersion'=>$version, 'option'=>'original');
+	} else if($version==null){
+		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
+	} else {
+		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'divide'=>'1', 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docVersion'=>$settings['docVersion'], 'option'=>'original');
 	}
 	
-	$_POST = array('namespace'=>$namespace, 'title'=>$w, 'ip'=>$_SERVER['REMOTE_ADDR'], 'option'=>'original');
-	if($alpha){
-		if($namespace=='12'){
-			$namespace = '11';
-		} else if($namespace=='13'){
-			$namespace = '6';
-		}
-		$_POST = array('namespace'=>$namespace, 'title'=>$w, 'divide'=>'1', 'ip'=>$_SERVER['REMOTE_ADDR'], 'option'=>'original');
-		$namespace = 0;
-	}
 	define('MODEINCLUDE', true);
 	include $_SERVER['DOCUMENT_ROOT'].'/API.php';
 	$_POST = null;
@@ -73,6 +32,8 @@
 		} else if($api_result->reason=='forbidden'){
 			die('<script> alert("권한이 부족합니다."); </script>');
 		} else if($api_result->reason=='empty document'){
+			$api_result->data = '';
+		} else if($api_result->reason=='reversion error'){
 			$api_result->data = '';
 		} else {
 			die('<script> alert("API에 문제가 발생했습니다."); </script>');

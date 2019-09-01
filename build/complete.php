@@ -1,97 +1,61 @@
 <?php
-	$namespace = '0';
-	if(count(explode(":", $_GET['w']))>1){
-		$tp = explode(":", $_GET['w']);
-		switch($tp[0]){
-			case '틀':
-				$namespace = '1';
-				break;
-			case '분류':
-				$namespace = '2';
-				break;
-			case '파일':
-				$namespace = '3';
-				break;
-			case '사용자':
-				$namespace = '4';
-				break;
-			case '나무위키':
-				$namespace = '6';
-				break;
-			case '휴지통':
-				$namespace = '8';
-				break;
-			case 'TheWiki':
-				$namespace = '10';
-				break;
-			case '이미지':
-				$namespace = '11';
-				break;
-			case '집단창작':
-				$alpha = true;
-				$namespace = '12';
-				break;
-			case '알파위키':
-				$alpha = true;
-				$namespace = '13';
-				break;
-			default:
-				$namespace = '0';
-		
-		}
-		if($namespace>0){
-			$_GET['w'] = str_replace($tp[0].":", "", implode(":", $tp));
-		}
-	}
-	
-	if($namespace>0){
-		$tp = $tp[0].":";
-	} else {
-		$tp = "";
-	}
+	define('THEWIKI', true);
+	$THEWIKI_SUBSTRLEN = explode('/', $_SERVER['REQUEST_URI'])[1];
+	include $_SERVER['DOCUMENT_ROOT'].'/config.php';
 	
 	try{
-		define('THEWIKI', true);
-		include $_SERVER['DOCUMENT_ROOT'].'/config.php';
-		if($settings['docVersion']==$settingsref['docVersion']){
-			if($namespace=='0'||$namespace=='1'||$namespace=='6'){
+		if($THEWIKI_NOW_NAMESPACE==5||$THEWIKI_NOW_NAMESPACE==10||$THEWIKI_NOW_NAMESPACE==11){
+			$search = "SELECT * FROM wiki_contents_history WHERE namespace = '$THEWIKI_NOW_NAMESPACE' AND title LIKE '".$THEWIKI_NOW_TITLE_REAL."%'";
+			$searchres = mysqli_query($wiki_db, $search);
+			$data = array();
+			while($searcharr = mysqli_fetch_array($searchres)){
+				if(!in_array($THEWIKI_NOW_NAMESPACE_NAME.":".$searcharr[2], $data)){
+					$data[] = $THEWIKI_NOW_NAMESPACE_NAME.":".$searcharr[2];
+					$loop++;
+				}
+				if($loop>10){
+					break;
+				}
+			}
+			$dbMode = true;
+		} else {
+			if($THEWIKI_NOW_NAMESPACE==2||$THEWIKI_NOW_NAMESPACE==3||$THEWIKI_NOW_NAMESPACE==4){
+				if($settings['docVersion']==$settingsref['docVersion']){
+					$settings['docVersion'] = '180326';
+				}
 				$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 			} else {
-				$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27018/thewiki');
-			}
-		} else {
-			$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27018/thewiki');
-			if($settings['docVersion']=='180925'&&$alpha){
-				if($namespace=='12'){
-					$namespace = '11';
-				} else if($namespace=='13'){
-					$namespace = '6';
-				}
-			} else {
-				if($namespace=='6'||$namespace=='11'){
-					$namespace = 12;
+				if($settings['docVersion']==$settingsref['docVersion']){
+					$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+				} else {
+					if(!empty($THEWIKI_NOW_NAMESPACE_FAKE)){
+						$THEWIKI_NOW_NAMESPACE = $THEWIKI_NOW_NAMESPACE_FAKE;
+					}
+					$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 				}
 			}
 		}
-		$query = new MongoDB\Driver\Query(array('namespace' => $namespace, 'title' => array('$regex'=>'^'.$_GET['w'])), array('limit' => 10 ));
-		switch($settings['docVersion']){
-			case '160229': $arr = $mongo->executeQuery('thewiki.docData160229', $query); break;
-			case '160329': $arr = $mongo->executeQuery('thewiki.docData160329', $query); break;
-			case '160425': $arr = $mongo->executeQuery('thewiki.docData160425', $query); break;
-			case '160530': $arr = $mongo->executeQuery('thewiki.docData160530', $query); break;
-			case '160627': $arr = $mongo->executeQuery('thewiki.docData160627', $query); break;
-			case '160728': $arr = $mongo->executeQuery('thewiki.docData160728', $query); break;
-			case '160829': $arr = $mongo->executeQuery('thewiki.docData160829', $query); break;
-			case '161031': $arr = $mongo->executeQuery('thewiki.docData161031', $query); break;
-			case '170327': $arr = $mongo->executeQuery('thewiki.docData170327', $query); break;
-			case '180326': $arr = $mongo->executeQuery('thewiki.docData180326', $query); break;
-			case '180925': $arr = $mongo->executeQuery('thewiki.docData180925', $query); break;
-			default: $arr = $mongo->executeQuery('thewiki.docData190312', $query); break;
-		}
-		
-		$data = array();
-		foreach($arr as $doc){
-			$data[] = $tp.$doc->title;
+		if(!$dbMode&&!empty($THEWIKI_NOW_TITLE_REAL)){
+			$query = new MongoDB\Driver\Query(array('namespace' => $THEWIKI_NOW_NAMESPACE, 'title' => array('$regex'=>'^'.$THEWIKI_NOW_TITLE_REAL)), array('limit' => 10 ));
+			switch($settings['docVersion']){
+				case '160229': $arr = $mongo->executeQuery('nisdisk.docData160229', $query); break;
+				case '160329': $arr = $mongo->executeQuery('nisdisk.docData160329', $query); break;
+				case '160425': $arr = $mongo->executeQuery('nisdisk.docData160425', $query); break;
+				case '160530': $arr = $mongo->executeQuery('nisdisk.docData160530', $query); break;
+				case '160627': $arr = $mongo->executeQuery('nisdisk.docData160627', $query); break;
+				case '160728': $arr = $mongo->executeQuery('nisdisk.docData160728', $query); break;
+				case '160829': $arr = $mongo->executeQuery('nisdisk.docData160829', $query); break;
+				case '161031': $arr = $mongo->executeQuery('nisdisk.docData161031', $query); break;
+				case '170327': $arr = $mongo->executeQuery('nisdisk.docData170327', $query); break;
+				case '180326': $arr = $mongo->executeQuery('nisdisk.docData180326', $query); break;
+				case '180925': $arr = $mongo->executeQuery('nisdisk.docData180925', $query); break;
+				default: $arr = $mongo->executeQuery('nisdisk.docData190312', $query); break;
+			}
+			
+			$data = array();
+			foreach($arr as $doc){
+				$data[] = $THEWIKI_NOW_NAMESPACE_NAME.":".$doc->title;
+			}
 		}
 		echo json_encode($data, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
 	} catch (MongoDB\Driver\Exception\Exception $e){
