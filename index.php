@@ -225,6 +225,7 @@
 	}
 	
 	if($THEWIKI_NOW_NAMESPACE==3){
+		$empty = false;
 		$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]".$arr['text'];
 	}
 	if($THEWIKI_NOW_NAMESPACE==11){
