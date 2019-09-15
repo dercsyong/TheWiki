@@ -16,4 +16,4 @@ PHP 7.x 이상<br>
 mongoDB 3.4.x 및 mongoDB Driver v1.5 이상<hr>
 mongoDB Driver 문제로 동작하지 않는 경우 ver 2.x 참고해서 수정해야 합니다.<br><br>
 # 덤프 파일 (json 및 sql)
-http://dump.thewiki.ga
+http://dump.thewiki.kr
