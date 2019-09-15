@@ -36,6 +36,9 @@
 			}
 		}
 		if(!$dbMode&&!empty($THEWIKI_NOW_TITLE_REAL)){
+			if(empty($THEWIKI_NOW_NAMESPACE)){
+				$THEWIKI_NOW_NAMESPACE = "0";
+			}
 			$query = new MongoDB\Driver\Query(array('namespace' => $THEWIKI_NOW_NAMESPACE, 'title' => array('$regex'=>'^'.$THEWIKI_NOW_TITLE_REAL)), array('limit' => 10 ));
 			switch($settings['docVersion']){
 				case '160229': $arr = $mongo->executeQuery('nisdisk.docData160229', $query); break;
@@ -51,10 +54,12 @@
 				case '180925': $arr = $mongo->executeQuery('nisdisk.docData180925', $query); break;
 				default: $arr = $mongo->executeQuery('nisdisk.docData190312', $query); break;
 			}
-			
+			if(!empty($THEWIKI_NOW_NAMESPACE_NAME)){
+				$THEWIKI_NOW_NAMESPACE_NAME = $THEWIKI_NOW_NAMESPACE_NAME.":";
+			}
 			$data = array();
 			foreach($arr as $doc){
-				$data[] = $THEWIKI_NOW_NAMESPACE_NAME.":".$doc->title;
+				$data[] = $THEWIKI_NOW_NAMESPACE_NAME.$doc->title;
 			}
 		}
 		echo json_encode($data, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
