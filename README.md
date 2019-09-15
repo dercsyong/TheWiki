@@ -4,8 +4,8 @@
 namumark가 상당히 오래전에 공개되었고, 그동안 문법이 여러번 바뀌었기 때문에<br>
 정상작동을 보증하지 않습니다.<br><br>
 제가 github에 자주 접속하지 않기 때문에 이슈보고는 github보다는 아래 링크에서 해주시는게 좋습니다.<br>
-http://thewiki.ga/request/<br>
-Email : dercsyong@thewiki.ga<br><br>
+http://thewiki.kr/request/<br>
+Email : dercsyong@thewiki.kr<br><br>
 # 3.1.x 이후 버전
 ver 3.1.x 부터는 namumark를 일부 수정한 theMark를 사용하기 때문에 namumark를 사용하시려면 3.0.5 이하 버전을 참고해서 수정해야 합니다.<br>
 theMark : https://github.com/dercsyong/TheMarkProject
