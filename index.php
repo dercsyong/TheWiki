@@ -29,7 +29,7 @@
 				case '180925_alphawiki':
 					$docVersion = 180925;
 					break;
-				case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229':
+				case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229': case '160126': case '151130': case '151108': case '150928': case '150831': case '150728': case '150629':
 					$docVersion = $_GET['autover'];
 					break;
 				default:
@@ -85,11 +85,7 @@
 			}
 			
 			switch($_POST['docVersion']){
-				case '180925_alphawiki':
-					$docVersion = 180925;
-					$enableAds = 1;
-					break;
-				case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229':
+				case '180925': case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229': case '160126': case '151130': case '151108': case '150928': case '150831': case '150728': case '150629':
 					$docVersion = $_POST['docVersion'];
 					$enableAds = 1;
 					break;
@@ -553,7 +549,7 @@
 		}
 		$title_list = "| ".$title_list;
 		
-		echo '<br><hr>저장된 문서가 아닙니다.<br>Google 맞춤검색에서 비슷한 문서가 있는지 검색해보세요.<hr><a href="/edit/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_top">새로운 문서 만들기</a>';
+		echo '<br><h4>존재하지 않는 문서</h4><hr>1) 이전 덤프버전에 해당 문서가 존재할 수 있습니다. <a href="/settings">설정</a>에서 덤프 버전을 변경해보세요.<br>2) Google 맞춤검색에서 비슷한 문서가 있는지 검색해보세요.<br>3) <a href="/edit/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_top">새로운 문서</a>를 만들어보세요.';
 		if(count($result)){
 			echo '<hr><br>이런 문서들이 있을 수 있습니다. 확인해보세요!<br>'.$title_list;
 		}
