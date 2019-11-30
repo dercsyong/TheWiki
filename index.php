@@ -279,8 +279,11 @@
 		} catch (MongoDB\Driver\Exception\Exception $e){
 			$arr2 = "{{{+2 mongoDB 서버에 접속할 수 없습니다}}}";
 		}
-		
-		$arr['text'] = $arr2."\n= 분류 설명 =\n".$arr['text'];
+		if(!$arr2){
+			$arr['text'] = '{{{+2 존재하지 않는 분류}}}{{{#!html <hr>}}}이 이름으로 분류된 문서가 없습니다.';
+		} else {
+			$arr['text'] = $arr2."\n= 분류 설명 =\n".$arr['text'];
+		}
 	}
 	
 	if(!empty($forceDocument)){
