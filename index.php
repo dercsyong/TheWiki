@@ -20,7 +20,7 @@
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
 				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
-				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]')";
+				$sql .= "('".$_SERVER['HTTP_CF_CONNECTING_IP']."', '$settingsref[docVersion]')";
 				mysqli_query($config_db, $sql);
 			}
 			
@@ -150,13 +150,15 @@
 		$api_result->status = 'success';
 	}
 	$_POST = $tPost;
-	
+	$empty = false;
 	if($api_result->status!='success'){
 		if($api_result->reason=='main db error'){
 			$arr['text'] = '{{{+2 메인 DB 서버에 접속할 수 없습니다.[br]주요 기능이 동작하지 않습니다.}}}';
 		} else if($api_result->reason=='please check document title'){
 			$arr['text'] = '{{{+2 누락된 정보가 있습니다.}}}';
 		} else if($api_result->reason=='forbidden'){
+			$settings['enableAds'] = false;
+			$settings['enableAdsAdult'] = true;
 			$forceDocument = '{{{#!html <a>더위키</a>}}}에서 '.$api_result->expire.'까지 읽기 보호가 설정된 문서입니다.[br]이 문서는 View 권한이 '.$api_result->class.'등급 이상인 운영진만 볼 수 있습니다.';
 		} else if($api_result->reason=='empty document'){
 			$empty = true;
@@ -180,7 +182,7 @@
 	unset($api_result);
 	
 	// 애드센스 정책
-	if(count(explode("틀:성적요소", $arr['text']))>1){
+	if(count(explode("틀:성적요소", $arr['text']))>1||count(explode("틀:심플/성적요소", $arr['text']))>1){
 		$settings['enableAds'] = false;
 		$settings['enableAdsAdult'] = true;
 	}
@@ -210,8 +212,8 @@
 		$THEWIKI_BTN[] = array('/history///HERE//', '수정 내역');
 		if(!empty($_SESSION['name'])){
 			$THEWIKI_BTN[] = array('/edit///HERE//', '편집');
-			$THEWIKI_BTN[] = array('/discuss///HERE///0', '토론');
 		}
+		$THEWIKI_BTN[] = array('/discuss///HERE///0', '토론');
 	} else {
 		$THEWIKI_BTN[] = array('/w/TheWiki:%EC%88%98%EC%9D%B5%EA%B8%88%20%EB%B3%B4%EA%B3%A0%EC%84%9C', '광고 수익금 보고서');
 	}
@@ -226,22 +228,19 @@
 	}
 	if($THEWIKI_NOW_NAMESPACE==11){
 		$empty = false;
-		if(file_exists($_SERVER['DOCUMENT_ROOT']."/customupload/".$THEWIKI_NOW_TITLE_REAL)){
-			$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]\n".$arr['text'];
-		} else {
-			$arr['text'] = "저장된 이미지가 아닙니다.";
-		}
+		$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]\n".$arr['text'];
 	}
 	
 	// 분류 문서
 	if($THEWIKI_NOW_NAMESPACE==2){
+		$empty = false;
 		try{
-			$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+			$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/');
 			$query = array("title"=>"분류:".$THEWIKI_NOW_TITLE_REAL);
 			$query = new MongoDB\Driver\Query($query);
+			$arr2 = null;
 			if($settings['docVersion']==$settingsref['docVersion']){
 				$print = $mongo2->executeQuery('nisdisk.category'.$settingsref['docVersion'], $query);
-				//print_r($print);
 				foreach($print as $value){
 					$arr2 = "= 상위 분류 =\n";
 					foreach($value->up as $topCa){
@@ -293,6 +292,7 @@
 	if(!empty($arr['text'])){
 		require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
 		$theMark = new theMark($arr['text']);
+		$theMark->pageTitle = $THEWIKI_NOW_TITLE_FULL;
 		if($noredirect){
 			$theMark->redirect = false;
 		}
@@ -340,19 +340,19 @@
 		<meta property="og:type" content="website">
 		<meta property="og:title" content="더위키 :: <?=$THEWIKI_NOW_TITLE_FULL?>">
 		<meta property="og:description" content="<?=trim(mb_substr(strip_tags($theMarkDescription), mb_strlen(strip_tags($theMarkDescription), 'utf8')/2, 300, 'utf8'))?>">
-		<meta property="og:url" content="http://thewiki.ga/w/<?=$THEWIKI_NOW_TITLE_FULL?>">
-		<link rel="stylesheet" href="/namuwiki/css/jquery-ui.min.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/bootstrap.min.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/ionicons.min.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/katex.min.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/flag-icon.min.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/diffview.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/nprogress.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/bootstrap-fix.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/layout.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/wiki.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/discuss.css"/>
-		<link rel="stylesheet" href="/namuwiki/css/dark.css"/>
+		<meta property="og:url" content="http://thewiki.kr/w/<?=$THEWIKI_NOW_TITLE_FULL?>">
+		<link defer rel="stylesheet" href="/namuwiki/css/jquery-ui.min.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/bootstrap.min.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/ionicons.min.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/katex.min.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/flag-icon.min.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/diffview.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/nprogress.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/bootstrap-fix.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/layout.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/wiki.css"/>
+		<link defer rel="stylesheet" href="/namuwiki/css/discuss.css"/>
+		<link defer  rel="stylesheet" href="/namuwiki/css/dark.css"/>
 		<!--[if (!IE)|(gt IE 8)]><!-->
 		<script type="text/javascript" src="/namuwiki/js/jquery-2.1.4.min.js"></script>
 		<!--<![endif]-->
@@ -361,20 +361,20 @@
 		<script type="text/javascript" src="/namuwiki/js/html5.js?1444428364"></script>
 		<script type="text/javascript" src="/namuwiki/js/respond.min.js?1444428364"></script>
 		<![endif]-->
-		<script type="text/javascript" src="/namuwiki/js/jquery.lazyload.min.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/jquery.lazyload.min.js"></script>
 		<script type="text/javascript" src="/namuwiki/js/jquery-ui.min.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/tether.min.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/bootstrap.min.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/jquery.pjax.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/nprogress.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/dateformatter.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/namu.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/wiki.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/edit.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/discuss.js"></script>
-		<script type="text/javascript" src="/namuwiki/js/theseed.js"></script>
-		<script src="/js/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
-		<script src="/js/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/tether.min.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/bootstrap.min.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/jquery.pjax.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/nprogress.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/dateformatter.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/namu.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/wiki.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/edit.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/discuss.js"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/theseed.js"></script>
+		<script defer src="/js/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
+		<script defer src="/js/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous"></script>
 		<script>
 			document.addEventListener("DOMContentLoaded", function() {
 				renderMathInElement(document.body, {
@@ -384,9 +384,12 @@
 				});
 			});
 		</script>
+<?php	if(!$settings['enableAdsAdult']&&$settings['enableAds']&&!$empty){ ?>
+		<!-- 구글 자동광고 영역 -->
+<?php	} ?>
 	</head>
 	<body class="senkawa hide-sidebar fixed-size fixed-1300">
-		<script type="text/javascript" src="/namuwiki/js/layout.js?e4665c6b"></script>
+		<script defer type="text/javascript" src="/namuwiki/js/layout.js?e4665c6b"></script>
 		<div class="navbar-wrapper">
 			<nav class="navbar navbar-dark bg-inverse navbar-static-top">
 				<?=$THEWIKI_NAV?>
@@ -398,15 +401,7 @@
 				<div class="alert alert-info fade in last" id="userDiscussAlert" role="alert">
 					<?=$userAlert?>
 				</div>
-	<?php	}
-			if(!$settings['enableAdsAdult']){ ?>
-				<!-- 구글 자동광고 영역 -->
-	<?php	}
-			if($settings['enableAds']){ ?>
-				<p>
-					<!-- 구글 일반광고 영역 -->
-				</p>
-	<?php	} ?>	
+	<?php	} ?>
 				<div class="wiki-article-menu">
 					<div class="btn-group" role="group">
 		<?php	foreach($THEWIKI_BTN as $c=>$list){
@@ -435,18 +430,10 @@
 									<div class="form-group" id="documentVersion">
 										<label class="control-label">덤프 버전</label>
 										<select class="form-control setting-item" name="docVersion">
-											<option value="190312" <?php if($settings['docVersion']=="190312"){ echo 'selected'; } ?>>20190312 (* 권장)</option>
-											<option value="180925_alphawiki" <?php if($settings['docVersion']=="180925"){ echo 'selected'; } ?>>20180925_alphawiki</option>
-											<option value="180326" <?php if($settings['docVersion']=="180326"){ echo 'selected'; } ?>>20180326</option>
-											<option value="170327" <?php if($settings['docVersion']=="170327"){ echo 'selected'; } ?>>20170327</option>
-											<option value="161031" <?php if($settings['docVersion']=="161031"){ echo 'selected'; } ?>>20161031</option>
-											<option value="160829" <?php if($settings['docVersion']=="160829"){ echo 'selected'; } ?>>20160829</option>
-											<option value="160728" <?php if($settings['docVersion']=="160728"){ echo 'selected'; } ?>>20160728</option>
-											<option value="160627" <?php if($settings['docVersion']=="160627"){ echo 'selected'; } ?>>20160627</option>
-											<option value="160530" <?php if($settings['docVersion']=="160530"){ echo 'selected'; } ?>>20160530</option>
-											<option value="160425" <?php if($settings['docVersion']=="160425"){ echo 'selected'; } ?>>20160425</option>
-											<option value="160329" <?php if($settings['docVersion']=="160329"){ echo 'selected'; } ?>>20160329</option>
-											<option value="160229" <?php if($settings['docVersion']=="160229"){ echo 'selected'; } ?>>20160229</option>
+								<?php	$docVersionList = array('190312', '180925', '180326', '170327', '161031', '160829', '160728', '160627', '160530', '160425', '160329', '160229', '160126', '151130', '151108', '150928', '150831', '150728', '150629');
+										foreach($docVersionList as $value){ ?>
+											<option value="<?=$value?>" <?php if($settings['docVersion']==$value){ echo 'selected'; } ?>>20<?=$value?><?php if($settingsref['docVersion']==$value){ echo ' (* 권장)'; }?></option>
+								<?php	} ?>
 										</select>
 									</div>
 									
