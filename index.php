@@ -119,12 +119,6 @@
 		die(header('Location: /w/TheWiki:%ED%99%88'));
 	}
 	
-	if($settings['docVersion']!=$settingsref['docVersion']){
-		$userAlert = "현재 ".$settings['docVersion']."버전 덤프를 사용중이며, 로딩이 불안정할 수 있습니다. &nbsp; &nbsp; =><a href='/w/?settings=1&autover=".$settingsref['docVersion']."'>안정 버전 사용</a>";
-	} else {
-		$userAlert = '궁금하신 점이 있으신가요? <a href="/request/">기술지원</a>을 요청해보세요.';
-	}
-	
 	if($THEWIKI_MOVED_DOCUMENT){
 		$userAlert = $THEWIKI_BEFORE_TITLE_FULL.'에서 이동된 문서입니다.';
 	}
@@ -179,6 +173,7 @@
 		}
 		$AllPage = $api_result->count;
 	}
+	$THEWIKI_NOW_REV = $api_result->rev;
 	unset($api_result);
 	
 	// 애드센스 정책
@@ -188,8 +183,8 @@
 	}
 	
 	if($THEWIKI_NOW_NAMESPACE==5){
-		$get_block_arr = getBlockCHK($get_admin[1]);
-		$get_admin = getAdminCHK($get_admin[1]);
+		$get_block_arr = getBlockCHK($THEWIKI_NOW_TITLE_REAL);
+		$get_admin = getAdminCHK($THEWIKI_NOW_TITLE_REAL);
 		
 		if($get_block_arr['expire']>$date){
 			$arr['text'] = '{{{#!html <div class="alert alert-info fade in last" id="userDiscussAlert" role="alert"><p>'.$get_block_arr['expire'].'까지 차단된 계정입니다.<br>사유 : '.$get_block_arr['title'].'</p></div>}}}';
@@ -218,110 +213,122 @@
 		$THEWIKI_BTN[] = array('/w/TheWiki:%EC%88%98%EC%9D%B5%EA%B8%88%20%EB%B3%B4%EA%B3%A0%EC%84%9C', '광고 수익금 보고서');
 	}
 	
-	if(defined('isdeleted')&&$arr['text']==' '){
-		$arr['text'] = '{{{#!html <hr>이 문서는 삭제되었습니다.<hr><a href="/edit/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_top">새로운 문서 만들기</a>}}}';
-	} else if($THEWIKI_NOW_NAMESPACE==3){
-		$empty = false;
-		$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]".$arr['text'];
-	} else if($THEWIKI_NOW_NAMESPACE==11){
-		$empty = false;
-		$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]\n".$arr['text'];
-	}
-	
-	// 분류 문서
-	if($THEWIKI_NOW_NAMESPACE==2){
-		$empty = false;
-		try{
-			$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/');
-			$query = array("title"=>"분류:".$THEWIKI_NOW_TITLE_REAL);
-			$query = new MongoDB\Driver\Query($query);
-			$arr2 = null;
-			if($settings['docVersion']==$settingsref['docVersion']){
-				$print = $mongo2->executeQuery('nisdisk.category'.$settingsref['docVersion'], $query);
-				foreach($print as $value){
-					$arr2 = "= 상위 분류 =\n";
-					foreach($value->up as $topCa){
-						$arr2 .= "[[:".$topCa."]]\n";
-					}
-					$arr2 .= "= 하위 분류 =\n";
-					foreach($value->btm as $btmCa){
-						$arr2 .= "[[:".$btmCa."]]\n";
-					}
-				}
-				$print = $mongo2->executeQuery('nisdisk.category'.$settings['docVersion'], $query);
-				foreach($print as $value){
-					$arr2 .= "= 포함된 문서 =\n";
-					foreach($value->includeDoc as $inDoc){
-						$arr2 .= "[[".$inDoc."]]\n";
-					}
-				}
-			} else {
-				$print = $mongo2->executeQuery('nisdisk.category'.$settings['docVersion'], $query);
-				foreach($print as $value){
-					$arr2 = "= 상위 분류 =\n";
-					foreach($value->up as $topCa){
-						$arr2 .= "[[:".$topCa."]]\n";
-					}
-					$arr2 .= "= 하위 분류 =\n";
-					foreach($value->btm as $btmCa){
-						$arr2 .= "[[:".$btmCa."]]\n";
-					}
-					$arr2 .= "= 포함된 문서 =\n";
-					foreach($value->includeDoc as $inDoc){
-						$arr2 .= "[[".$inDoc."]]\n";
-					}
-				}
-			}
-		} catch (MongoDB\Driver\Exception\Exception $e){
-			$arr2 = "{{{+2 mongoDB 서버에 접속할 수 없습니다}}}";
+	$CacheCheck = theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], null);
+	if(!$CacheCheck['status']){
+		$needCache = true;
+		if(defined('isdeleted')&&$arr['text']==' '){
+			$arr['text'] = '{{{#!html <hr>이 문서는 삭제되었습니다.<hr><a href="/edit/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_top">새로운 문서 만들기</a>}}}';
+		} else if($THEWIKI_NOW_NAMESPACE==3){
+			$empty = false;
+			$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]".$arr['text'];
+		} else if($THEWIKI_NOW_NAMESPACE==11){
+			$empty = false;
+			$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]\n".$arr['text'];
 		}
-		if(!$arr2){
-			$arr['text'] = '{{{+2 존재하지 않는 분류}}}{{{#!html <hr>}}}이 이름으로 분류된 문서가 없습니다.';
-		} else {
-			$arr['text'] = $arr2."\n= 분류 설명 =\n".$arr['text'];
-		}
-	}
-	
-	if(!empty($forceDocument)){
-		$arr['text'] = $forceDocument;
-	}
-	
-	if(!empty($arr['text'])){
-		require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
-		$theMark = new theMark($arr['text']);
-		$theMark->pageTitle = $THEWIKI_NOW_TITLE_FULL;
-		if($noredirect){
-			$theMark->redirect = false;
-		}
-		if(!$settings['docStrikeLine']){
-			$theMark->strikeLine = true;
-		}
-		if($settings['imgAutoLoad']=='0'){
-			$theMark->imageAsLink = true;
-		}
-		if($THEWIKI_NOW_NAMESPACE==3||$THEWIKI_NOW_NAMESPACE==11){
-			$theMark->imageAsLink = false;
-		}
-		if(!$settings['docShowInclude']){
-			$theMark->included = true;
-		}
-		$theMark = $theMark->toHtml();
 		
-		$theMarkDescription = new theMark($arr['text']);
-		if(!$settings['docStrikeLine']){
-			$theMarkDescription->strikeLine = true;
+		// 분류 문서
+		if($THEWIKI_NOW_NAMESPACE==2){
+			$empty = false;
+			try{
+				$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/');
+				$query = array("title"=>"분류:".$THEWIKI_NOW_TITLE_REAL);
+				$query = new MongoDB\Driver\Query($query);
+				$arr2 = null;
+				if($settings['docVersion']==$settingsref['docVersion']){
+					$print = $mongo2->executeQuery('nisdisk.category'.$settingsref['docVersion'], $query);
+					foreach($print as $value){
+						$arr2 = "= 상위 분류 =\n";
+						foreach($value->up as $topCa){
+							$arr2 .= "[[:".$topCa."]]\n";
+						}
+						$arr2 .= "= 하위 분류 =\n";
+						foreach($value->btm as $btmCa){
+							$arr2 .= "[[:".$btmCa."]]\n";
+						}
+					}
+					$print = $mongo2->executeQuery('nisdisk.category'.$settings['docVersion'], $query);
+					foreach($print as $value){
+						$arr2 .= "= 포함된 문서 =\n";
+						foreach($value->includeDoc as $inDoc){
+							$arr2 .= "[[".$inDoc."]]\n";
+						}
+					}
+				} else {
+					$print = $mongo2->executeQuery('nisdisk.category'.$settings['docVersion'], $query);
+					foreach($print as $value){
+						$arr2 = "= 상위 분류 =\n";
+						foreach($value->up as $topCa){
+							$arr2 .= "[[:".$topCa."]]\n";
+						}
+						$arr2 .= "= 하위 분류 =\n";
+						foreach($value->btm as $btmCa){
+							$arr2 .= "[[:".$btmCa."]]\n";
+						}
+						$arr2 .= "= 포함된 문서 =\n";
+						foreach($value->includeDoc as $inDoc){
+							$arr2 .= "[[".$inDoc."]]\n";
+						}
+					}
+				}
+			} catch (MongoDB\Driver\Exception\Exception $e){
+				$arr2 = "{{{+2 mongoDB 서버에 접속할 수 없습니다}}}";
+			}
+			if(!$arr2){
+				$arr['text'] = '{{{+2 존재하지 않는 분류}}}{{{#!html <hr>}}}이 이름으로 분류된 문서가 없습니다.';
+			} else {
+				$arr['text'] = $arr2."\n= 분류 설명 =\n".$arr['text'];
+			}
 		}
-		if($settings['imgAutoLoad']=='0'){
-			$theMarkDescription->imageAsLink = true;
+		
+		if(!empty($forceDocument)){
+			$arr['text'] = $forceDocument;
 		}
-		if($THEWIKI_NOW_NAMESPACE==3||$THEWIKI_NOW_NAMESPACE==11){
-			$theMarkDescription->imageAsLink = false;
+		
+		if(!empty($arr['text'])){
+			require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
+			$theMark = new theMark($arr['text']);
+			$theMark->pageTitle = $THEWIKI_NOW_TITLE_FULL;
+			if($noredirect){
+				$theMark->redirect = false;
+			}
+			if(!$settings['docStrikeLine']){
+				$theMark->strikeLine = true;
+			}
+			if($settings['imgAutoLoad']=='0'){
+				$theMark->imageAsLink = true;
+			}
+			if($THEWIKI_NOW_NAMESPACE==3||$THEWIKI_NOW_NAMESPACE==11){
+				$theMark->imageAsLink = false;
+			}
+			if(!$settings['docShowInclude']){
+				$theMark->included = true;
+			}
+			$theMark = $theMark->toHtml();
+			
+			$theMarkDescription = new theMark($arr['text']);
+			if(!$settings['docStrikeLine']){
+				$theMarkDescription->strikeLine = true;
+			}
+			if($settings['imgAutoLoad']=='0'){
+				$theMarkDescription->imageAsLink = true;
+			}
+			if($THEWIKI_NOW_NAMESPACE==3||$THEWIKI_NOW_NAMESPACE==11){
+				$theMarkDescription->imageAsLink = false;
+			}
+			if(!$settings['docShowInclude']){
+				$theMarkDescription->included = true;
+			}
+			$theMarkDescription->alltext = true;
+			$theMarkDescription = $theMarkDescription->toHtml();
 		}
-		if(!$settings['docShowInclude']){
-			$theMarkDescription->included = true;
+	} else {
+		$arr['text'] = $CacheCheck['raw'];
+		
+		if(!empty($forceDocument)){
+			$arr['text'] = $forceDocument;
 		}
-		$theMarkDescription->alltext = true;
-		$theMarkDescription = $theMarkDescription->toHtml();
+		
+		$theMark = $theMarkDescription = $arr['text'];
 	}
 ?>
 <!DOCTYPE html>
@@ -521,6 +528,9 @@
 	ob_flush(); flush();
 	
 	if(!$empty){
+		if($needCache){
+			theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], $theMark);
+		}
 		echo $theMark;
 	} else { ?>
 		<!-- 구글 검색광고 영역 -->
