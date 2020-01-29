@@ -11,6 +11,7 @@
 	}
 	
 	if(!empty($_GET['settings'])){
+		$dumpArray = array(190312, 180326, 170327, 161031, 160829, 160728, 160627, 160530, 160425, 160329, 160229, 160126, 151130, 151108, 150928, 150831, 150728, 150629);
 		$THEWIKI_NOW_TITLE_FULL = $_SERVER['REMOTE_ADDR']." 개인 설정";
 		$THEWIKI_NOW_TITLE_REAL = "!MyPage";
 		$settings['enableViewCount'] = false;
@@ -24,17 +25,12 @@
 				mysqli_query($config_db, $sql);
 			}
 			
-			$enableAds = 1;
-			switch($_GET['autover']){
-				case '180925_alphawiki':
-					$docVersion = 180925;
-					break;
-				case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229': case '160126': case '151130': case '151108': case '150928': case '150831': case '150728': case '150629':
-					$docVersion = $_GET['autover'];
-					break;
-				default:
-					$docVersion = $settingsref['docVersion'];
-					break;
+			if($_GET['autover']=="180925_alphawiki"){
+				$docVersion = 180925;
+			} else if(in_array($_GET['autover'], $dumpArray)){
+				$docVersion = $_GET['autover'];
+			} else {
+				$docVersion = $settingsref['docVersion'];
 			}
 			
 			$sql = "UPDATE settings SET docVersion = '$docVersion', enableAds = '1' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
@@ -55,60 +51,56 @@
 			die(header("Location: /settings"));
 		}
 		if(!empty($_GET['apply'])){
-			switch($_POST['Ads']){
-				case 'on':
+			if($_POST['Notice']=="on"){
+				$enableNotice = 1;
+			} else {
+				$enableNotice = 0;
+			}
+			if($_POST['docSL']=="on"){
+				$docStrikeLine = 1;
+			} else {
+				$docStrikeLine = 0;
+			}
+			if($_POST['imgAL']=="on"){
+				$imgAutoLoad = 1;
+			} else {
+				$imgAutoLoad = 0;
+			}
+			if(in_array($_POST['docVersion'], $dumpArray)){
+				$docVersion = $_POST['docVersion'];
+			} else {
+				$docVersion = $settingsref['docVersion'];
+			}
+			if($_POST['ViewCount']=="on"){
+				$enableViewCount = 1;
+			} else {
+				$enableViewCount = 0;
+			}
+			if($_POST['docSI']=="on"){
+				$docShowInclude = 1;
+			} else {
+				$docShowInclude = 0;
+			}
+			if($docVersion!=$settingsref['docVersion']){
+				$enableAds = 1;
+			} else {
+				if($_POST['Ads']=="on"){
 					$enableAds = 1;
-					break;
-				default:
+				} else {
 					$enableAds = 0;
+				}
 			}
-			switch($_POST['Notice']){
-				case 'on':
-					$enableNotice = 1;
-					break;
-				default:
-					$enableNotice = 0;
-			}
-			switch($_POST['docSL']){
-				case 'on':
-					$docStrikeLine = 1;
-					break;
-				default:
-					$docStrikeLine = 0;
-			}
-			switch($_POST['imgAL']){
-				case 'on':
-					$imgAutoLoad = 1;
-					break;
-				default:
-					$imgAutoLoad = 0;
+			if(!$imgAutoLoad||!$docStrikeLine||!$docShowInclude){
+				$docCache = 0;
+			} else {
+				if($_POST['docCA']=="on"){
+					$docCache = 1;
+				} else {
+					$docCache = 0;
+				}
 			}
 			
-			switch($_POST['docVersion']){
-				case '180925': case '180326': case '170327': case '161031': case '160829': case '160728': case '160627': case '160530': case '160425': case '160329': case '160229': case '160126': case '151130': case '151108': case '150928': case '150831': case '150728': case '150629':
-					$docVersion = $_POST['docVersion'];
-					$enableAds = 1;
-					break;
-				default:
-					$docVersion = $settingsref['docVersion'];
-					break;
-			}
-			switch($_POST['ViewCount']){
-				case 'on':
-					$enableViewCount = 1;
-					break;
-				default:
-					$enableViewCount = 0;
-			}
-			switch($_POST['docSI']){
-				case 'on':
-					$docShowInclude = 1;
-					break;
-				default:
-					$docShowInclude = 0;
-			}
-			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
+			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
 			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /settings"));
@@ -217,12 +209,15 @@
 	if(!$CacheCheck['status']){
 		$needCache = true;
 		if(defined('isdeleted')&&$arr['text']==' '){
+			$needCache = false;
 			$arr['text'] = '{{{#!html <hr>이 문서는 삭제되었습니다.<hr><a href="/edit/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_top">새로운 문서 만들기</a>}}}';
 		} else if($THEWIKI_NOW_NAMESPACE==3){
 			$empty = false;
+			$needCache = false;
 			$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]".$arr['text'];
 		} else if($THEWIKI_NOW_NAMESPACE==11){
 			$empty = false;
+			$needCache = false;
 			$arr['text'] = "[[".$THEWIKI_NOW_TITLE_FULL."]]\n".$arr['text'];
 		}
 		
@@ -271,6 +266,7 @@
 					}
 				}
 			} catch (MongoDB\Driver\Exception\Exception $e){
+				$needCache = false;
 				$arr2 = "{{{+2 mongoDB 서버에 접속할 수 없습니다}}}";
 			}
 			if(!$arr2){
@@ -281,6 +277,7 @@
 		}
 		
 		if(!empty($forceDocument)){
+			$needCache = false;
 			$arr['text'] = $forceDocument;
 		}
 		
@@ -304,22 +301,7 @@
 				$theMark->included = true;
 			}
 			$theMark = $theMark->toHtml();
-			
-			$theMarkDescription = new theMark($arr['text']);
-			if(!$settings['docStrikeLine']){
-				$theMarkDescription->strikeLine = true;
-			}
-			if($settings['imgAutoLoad']=='0'){
-				$theMarkDescription->imageAsLink = true;
-			}
-			if($THEWIKI_NOW_NAMESPACE==3||$THEWIKI_NOW_NAMESPACE==11){
-				$theMarkDescription->imageAsLink = false;
-			}
-			if(!$settings['docShowInclude']){
-				$theMarkDescription->included = true;
-			}
-			$theMarkDescription->alltext = true;
-			$theMarkDescription = $theMarkDescription->toHtml();
+			$theMarkDescription = preg_replace('~<\s*\bscript\b[^>]*>(.*?)<\s*\/\s*script\s*>~is', '', $theMark);
 		}
 	} else {
 		$arr['text'] = $CacheCheck['raw'];
@@ -328,7 +310,8 @@
 			$arr['text'] = $forceDocument;
 		}
 		
-		$theMark = $theMarkDescription = $arr['text'];
+		$theMark = $arr['text'];
+		$theMarkDescription = preg_replace('~<\s*\bscript\b[^>]*>(.*?)<\s*\/\s*script\s*>~is', '', $theMark);
 	}
 ?>
 <!DOCTYPE html>
@@ -445,8 +428,7 @@
 									<div class="form-group" id="documentVersion">
 										<label class="control-label">덤프 버전</label>
 										<select class="form-control setting-item" name="docVersion">
-								<?php	$docVersionList = array('190312', '180925', '180326', '170327', '161031', '160829', '160728', '160627', '160530', '160425', '160329', '160229', '160126', '151130', '151108', '150928', '150831', '150728', '150629');
-										foreach($docVersionList as $value){ ?>
+								<?php	foreach($dumpArray as $value){ ?>
 											<option value="<?=$value?>" <?php if($settings['docVersion']==$value){ echo 'selected'; } ?>>20<?=$value?><?php if($settingsref['docVersion']==$value){ echo ' (* 권장)'; }?></option>
 								<?php	} ?>
 										</select>
@@ -456,7 +438,7 @@
 										<label class="control-label">자동으로 이미지 읽기</label>
 										<div class="checkbox">
 											<label>
-												<input type="checkbox" name="imgAL" id="needads" <?php if($settings['imgAutoLoad']){ echo "checked"; }?>> 사용
+												<input type="checkbox" name="imgAL" <?php if($settings['imgAutoLoad']){ echo "checked"; }?>> 사용
 											</label>
 										</div>
 									</div>
@@ -465,9 +447,9 @@
 										<div class="checkbox">
 											<label>
 									<?php	if($settings['docVersion']!=$settingsref['docVersion']){ ?>
-												<input type="hidden" name="Ads" value="on"><input type="checkbox" name="Ads" id="ads" <?php if($settings['enableAds']){ echo "checked"; }?> disabled> 사용 <small>(비권장 덤프를 사용할 경우 기능 비활성화 불가능)</small>
+												<input type="hidden" name="Ads" value="on"><input type="checkbox" name="Ads" <?php if($settings['enableAds']){ echo "checked"; }?> disabled> 사용 <small>(비권장 덤프를 사용할 경우 기능 비활성화 불가능)</small>
 									<?php	} else { ?>
-												<input type="checkbox" name="Ads" id="ads" onclick="if(!document.settings.ads.checked){ alert('더위키는 광고 수익금으로 운영됩니다.\n광고가 너무 거슬린다면 기술지원을 통해 피드백을 부탁드립니다.'); }" <?php if($settings['enableAds']){ echo "checked"; }?>> 사용
+												<input type="checkbox" name="Ads" <?php if($settings['enableAds']){ echo "checked"; }?>> 사용
 									<?php	} ?>
 											</label>
 										</div>
@@ -505,6 +487,19 @@
 										<div class="checkbox">
 											<label>
 												<input type="checkbox" name="docSI" <?php if($settings['docShowInclude']){ echo "checked"; }?>> 사용
+											</label>
+										</div>
+									</div>
+									
+									<div class="form-group" id="documentShowInclude">
+										<label class="control-label">문서 캐싱</label>
+										<div class="checkbox">
+											<label>
+									<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']){ ?>
+												<input type="hidden" name="docCA" value=""><input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
+									<?php	} else { ?>
+												<input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?>> 사용
+									<?php	} ?>
 											</label>
 										</div>
 									</div>
