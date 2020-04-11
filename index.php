@@ -11,18 +11,18 @@
 	}
 	
 	if(!empty($_GET['settings'])){
-		$dumpArray = array(190312, 180326, 170327, 161031, 160829, 160728, 160627, 160530, 160425, 160329, 160229, 160126, 151130, 151108, 150928, 150831, 150728, 150629);
-		$THEWIKI_NOW_TITLE_FULL = $_SERVER['REMOTE_ADDR']." 개인 설정";
+		$dumpArray = array(200302, 190312, 180925, 180326, 170327, 161031, 160829, 160728, 160627, 160530, 160425, 160329, 160229, 160126, 151130, 151108, 150928, 150831, 150728, 150629);
+		$THEWIKI_NOW_TITLE_FULL = $_SERVER['HTTP_CF_CONNECTING_IP']." 개인 설정";
 		$THEWIKI_NOW_TITLE_REAL = "!MyPage";
 		$settings['enableViewCount'] = false;
-		$sql = "SELECT * FROM settings WHERE ip = '$_SERVER[REMOTE_ADDR]'";
+		$sql = "SELECT * FROM settings WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
 		if(!empty($_GET['autover'])){
 			$res = mysqli_query($config_db, $sql);
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
 				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
-				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]')";
-				mysqli_query($config_db, $sql);
+				$sql .= "('".$_SERVER['HTTP_CF_CONNECTING_IP']."', '$settingsref[docVersion]')";
+				mysqli_query($config_db_write, $sql);
 			}
 			
 			if($_GET['autover']=="180925_alphawiki"){
@@ -33,19 +33,19 @@
 				$docVersion = $settingsref['docVersion'];
 			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', enableAds = '1' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
-			mysqli_query($config_db, $sql);
+			$sql = "UPDATE settings SET docVersion = '$docVersion', enableAds = '1' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
+			mysqli_query($config_db_write, $sql);
 			
 			die(header("Location: /"));
 		}
 		if(!empty($_GET['create'])){
-			$sql = "SELECT * FROM settings WHERE ip = '$_SERVER[REMOTE_ADDR]'";
+			$sql = "SELECT * FROM settings WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
 			$res = mysqli_query($config_db, $sql);
 			$cnt = mysqli_num_rows($res);
 			if(!$cnt){
 				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
-				$sql .= "('".$_SERVER['REMOTE_ADDR']."', '$settingsref[docVersion]')";
-				mysqli_query($config_db, $sql);
+				$sql .= "('".$_SERVER['HTTP_CF_CONNECTING_IP']."', '$settingsref[docVersion]')";
+				mysqli_query($config_db_write, $sql);
 			}
 			
 			die(header("Location: /settings"));
@@ -100,8 +100,8 @@
 				}
 			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache' WHERE ip = '$_SERVER[REMOTE_ADDR]'";
-			mysqli_query($config_db, $sql);
+			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
+			mysqli_query($config_db_write, $sql);
 			
 			die(header("Location: /settings"));
 		}
@@ -122,7 +122,7 @@
 	}
 	
 	$tPost = $_POST;
-	$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'ip'=>$_SERVER['REMOTE_ADDR'], 'option'=>'original');
+	$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
 	if($settings['docVersion']=='180925'&&!empty($THEWIKI_NOW_NAMESPACE_FAKE)){
 		if($THEWIKI_NOW_NAMESPACE_FAKE!=7){
 			$_POST['namespace'] = $THEWIKI_NOW_NAMESPACE_FAKE;
@@ -139,9 +139,9 @@
 	$empty = false;
 	if($api_result->status!='success'){
 		if($api_result->reason=='main db error'){
-			$arr['text'] = '{{{+2 메인 DB 서버에 접속할 수 없습니다.[br]주요 기능이 동작하지 않습니다.}}}';
+			$forceDocument = '{{{+2 메인 DB 서버에 접속할 수 없습니다.[br]주요 기능이 동작하지 않습니다.}}}';
 		} else if($api_result->reason=='please check document title'){
-			$arr['text'] = '{{{+2 누락된 정보가 있습니다.}}}';
+			$forceDocument = '{{{+2 누락된 정보가 있습니다.}}}';
 		} else if($api_result->reason=='forbidden'){
 			$settings['enableAds'] = false;
 			$settings['enableAdsAdult'] = true;
@@ -149,9 +149,9 @@
 		} else if($api_result->reason=='empty document'){
 			$empty = true;
 		} else if($api_result->reason=='mongoDB server error'){
-			$arr['text'] = '{{{+2 mongoDB 서버에 접속할 수 없습니다.[br]설정이 초기화됩니다.}}}{{{#!html <meta http-equiv="Refresh" content="3;url=/settings">}}}';
+			$forceDocument = '{{{+2 mongoDB 서버에 접속할 수 없습니다.[br]설정이 초기화됩니다.}}}{{{#!html <meta http-equiv="Refresh" content="3;url=/settings">}}}';
 		} else {
-			$arr['text'] = '{{{+2 API에 문제가 발생했습니다.}}}';
+			$forceDocument = '{{{+2 API에 문제가 발생했습니다.}}}';
 		}
 	}
 	
@@ -179,7 +179,7 @@
 		$get_admin = getAdminCHK($THEWIKI_NOW_TITLE_REAL);
 		
 		if($get_block_arr['expire']>$date){
-			$arr['text'] = '{{{#!html <div class="alert alert-info fade in last" id="userDiscussAlert" role="alert"><p>'.$get_block_arr['expire'].'까지 차단된 계정입니다.<br>사유 : '.$get_block_arr['title'].'</p></div>}}}';
+			$forceDocument = '{{{#!html <div class="alert alert-info fade in last" id="userDiscussAlert" role="alert"><p>'.$get_block_arr['expire'].'까지 차단된 계정입니다.<br>사유 : '.$get_block_arr['title'].'</p></div>}}}';
 		}
 	}
 	
@@ -199,6 +199,10 @@
 		$THEWIKI_BTN[] = array('/history///HERE//', '수정 내역');
 		if(!empty($_SESSION['name'])){
 			$THEWIKI_BTN[] = array('/edit///HERE//', '편집');
+		}
+		$discussBoldCHK = getDiscussCHK($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL);
+		if(!empty($discussBoldCHK['topic_title'])){
+			$discussBold = true;
 		}
 		$THEWIKI_BTN[] = array('/discuss///HERE///0', '토론');
 	} else {
@@ -225,12 +229,12 @@
 		if($THEWIKI_NOW_NAMESPACE==2){
 			$empty = false;
 			try{
-				$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/');
+				$mongo2 = new MongoDB\Driver\Manager('mongodb://'.$mongoUser.':'.$mongoPW.'@'.$mongoHost.':27017/thewiki');
 				$query = array("title"=>"분류:".$THEWIKI_NOW_TITLE_REAL);
 				$query = new MongoDB\Driver\Query($query);
 				$arr2 = null;
 				if($settings['docVersion']==$settingsref['docVersion']){
-					$print = $mongo2->executeQuery('nisdisk.category'.$settingsref['docVersion'], $query);
+					$print = $mongo2->executeQuery('thewiki.category'.$settingsref['docVersion'], $query);
 					foreach($print as $value){
 						$arr2 = "= 상위 분류 =\n";
 						foreach($value->up as $topCa){
@@ -241,7 +245,7 @@
 							$arr2 .= "[[:".$btmCa."]]\n";
 						}
 					}
-					$print = $mongo2->executeQuery('nisdisk.category'.$settings['docVersion'], $query);
+					$print = $mongo2->executeQuery('thewiki.category'.$settings['docVersion'], $query);
 					foreach($print as $value){
 						$arr2 .= "= 포함된 문서 =\n";
 						foreach($value->includeDoc as $inDoc){
@@ -249,7 +253,7 @@
 						}
 					}
 				} else {
-					$print = $mongo2->executeQuery('nisdisk.category'.$settings['docVersion'], $query);
+					$print = $mongo2->executeQuery('thewiki.category'.$settings['docVersion'], $query);
 					foreach($print as $value){
 						$arr2 = "= 상위 분류 =\n";
 						foreach($value->up as $topCa){
@@ -307,7 +311,9 @@
 		$arr['text'] = $CacheCheck['raw'];
 		
 		if(!empty($forceDocument)){
-			$arr['text'] = $forceDocument;
+			require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
+			$theMark = new theMark($forceDocument);
+			$arr['text'] = $theMark->toHtml();
 		}
 		
 		$theMark = $arr['text'];
@@ -339,7 +345,6 @@
 		<link defer rel="stylesheet" href="/namuwiki/css/layout.css"/>
 		<link defer rel="stylesheet" href="/namuwiki/css/wiki.css"/>
 		<link defer rel="stylesheet" href="/namuwiki/css/discuss.css"/>
-		<link defer  rel="stylesheet" href="/namuwiki/css/dark.css"/>
 		<!--[if (!IE)|(gt IE 8)]><!-->
 		<script type="text/javascript" src="/namuwiki/js/jquery-2.1.4.min.js"></script>
 		<!--<![endif]-->
@@ -367,12 +372,17 @@
 		<script defer type="text/javascript" src="/namuwiki/js/nprogress.js"></script>
 		<script defer type="text/javascript" src="/namuwiki/js/dateformatter.js"></script>
 		<script defer type="text/javascript" src="/namuwiki/js/namu.js"></script>
-		<script defer type="text/javascript" src="/namuwiki/js/wiki.js"></script>
-		<script defer type="text/javascript" src="/namuwiki/js/edit.js"></script>
-		<script defer type="text/javascript" src="/namuwiki/js/discuss.js"></script>
 		<script defer type="text/javascript" src="/namuwiki/js/theseed.js"></script>
 		<script defer src="/js/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
 		<script defer src="/js/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous"></script>
+		<!-- Global site tag (gtag.js) - Google Analytics -->
+		<script async src="https://www.googletagmanager.com/gtag/js?id=UA-54316866-6"></script>
+		<script>
+		  window.dataLayer = window.dataLayer || [];
+		  function gtag(){dataLayer.push(arguments);}
+		  gtag('js', new Date());
+		  gtag('config', 'UA-54316866-6');
+		</script>
 		<script>
 			document.addEventListener("DOMContentLoaded", function() {
 				renderMathInElement(document.body, {
@@ -382,6 +392,9 @@
 				});
 			});
 		</script>
+		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/styles/default.min.css">
+		<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/highlight.min.js"></script>
+		<script>hljs.initHighlightingOnLoad();</script>
 <?php	if(!$settings['enableAdsAdult']&&$settings['enableAds']&&!$empty){ ?>
 			<!-- 구글 자동광고 영역 -->
 <?php	} ?>
@@ -403,7 +416,11 @@
 				<div class="wiki-article-menu">
 					<div class="btn-group" role="group">
 		<?php	foreach($THEWIKI_BTN as $c=>$list){
-					echo '<a class="btn btn-secondary" itemprop="url" href="'.str_replace('//HERE//', rawurlencode($THEWIKI_NOW_TITLE_FULL), $list[0]).'" role="button">'.$list[1].'</a>';
+					if($list[1]=="토론"&&$discussBold){
+						echo '<a class="btn btn-secondary discuss-bold" itemprop="url" href="'.str_replace('//HERE//', rawurlencode($THEWIKI_NOW_TITLE_FULL), $list[0]).'" role="button">'.$list[1].'</a>';
+					} else {
+						echo '<a class="btn btn-secondary" itemprop="url" href="'.str_replace('//HERE//', rawurlencode($THEWIKI_NOW_TITLE_FULL), $list[0]).'" role="button">'.$list[1].'</a>';
+					}
 				} ?>
 					</div>
 				</div>
@@ -520,7 +537,6 @@
 	</body>
 </html>
 		<?php	die(); } // 더위키 설정 페이지
-	ob_flush(); flush();
 	
 	if(!$empty){
 		if($needCache){
