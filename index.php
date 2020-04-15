@@ -8,10 +8,18 @@
 	
 	if($THEWIKI_NOW_TITLE_FULL=="!MyPage"){
 		die(header("Location: /settings"));
+	} else if($THEWIKI_NOW_TITLE_FULL=="!DenyUsers"){
+		die(header("Location: /DenyUsers"));
 	}
 	
+	if(!empty($_GET['block'])){
+		$THEWIKI_NOW_TITLE_FULL = "차단내역 조회";
+		$THEWIKI_NOW_TITLE_REAL = "!DenyUsers";
+		$settings['enableViewCount'] = 0;
+		$settings['docCache'] = 0;
+		$denyLists = getdenyLists();
+	}
 	if(!empty($_GET['settings'])){
-		$dumpArray = array(200302, 190312, 180925, 180326, 170327, 161031, 160829, 160728, 160627, 160530, 160425, 160329, 160229, 160126, 151130, 151108, 150928, 150831, 150728, 150629);
 		$THEWIKI_NOW_TITLE_FULL = $_SERVER['HTTP_CF_CONNECTING_IP']." 개인 설정";
 		$THEWIKI_NOW_TITLE_REAL = "!MyPage";
 		$settings['enableViewCount'] = false;
@@ -36,7 +44,13 @@
 			$sql = "UPDATE settings SET docVersion = '$docVersion', enableAds = '1' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
 			mysqli_query($config_db_write, $sql);
 			
-			die(header("Location: /"));
+			if(!empty($_SERVER['HTTP_REFERER'])){
+				$_SESSION['AUTOVER_APPLY'] = true;
+				$_SESSION['AUTOVER_APPLY_VER'] = $docVersion;
+				die('<script> location.href = "'.$_SERVER['HTTP_REFERER'].'"; </script>');
+			} else {
+				die(header("Location: /"));
+			}
 		}
 		if(!empty($_GET['create'])){
 			$sql = "SELECT * FROM settings WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
@@ -130,7 +144,7 @@
 		}
 	}
 	define('MODEINCLUDE', true);
-	if($THEWIKI_NOW_TITLE_REAL!='!MyPage'){
+	if($THEWIKI_NOW_TITLE_REAL!='!MyPage'&&$THEWIKI_NOW_TITLE_REAL!='!DenyUsers'){
 		include $_SERVER['DOCUMENT_ROOT'].'/API.php';
 	} else {
 		$api_result->status = 'success';
@@ -178,15 +192,17 @@
 		$get_block_arr = getBlockCHK($THEWIKI_NOW_TITLE_REAL);
 		$get_admin = getAdminCHK($THEWIKI_NOW_TITLE_REAL);
 		
-		if($get_block_arr['expire']>$date){
-			$forceDocument = '{{{#!html <div class="alert alert-info fade in last" id="userDiscussAlert" role="alert"><p>'.$get_block_arr['expire'].'까지 차단된 계정입니다.<br>사유 : '.$get_block_arr['title'].'</p></div>}}}';
+		if($get_block_arr['status']=="success"&&$get_block_arr['result']=="deny"&&$get_block_arr['datas']['endDate']>$date&&$get_block_arr['datas']['startDate']<$date){
+			$forceDocument = '{{{#!html <div class="alert alert-info fade in last" id="userDiscussAlert" role="alert"><p>'.$get_block_arr['datas']['endDate'].'까지 차단된 계정입니다.<br>사유 : '.$get_block_arr['datas']['reason'].'</p></div>}}}';
 		}
 	}
 	
 	if($THEWIKI_NAV_ADMIN){
 		$THEWIKI_BTN[] = array('/admin/acl///HERE//', 'ACL');
 	}
-	if($THEWIKI_NOW_TITLE_REAL!="!MyPage"){
+	if($THEWIKI_NOW_TITLE_REAL=="!DenyUsers"){
+		$THEWIKI_BTN = array();
+	} else if($THEWIKI_NOW_TITLE_REAL!="!MyPage"){
 		if($THEWIKI_NOW_NAMESPACE==5){
 			$THEWIKI_BTN[] = array('/userinfo///HERE///contributions', '문서 기여내역');
 			$THEWIKI_BTN[] = array('/userinfo///HERE///discuss', '토론 기여내역');
@@ -201,6 +217,7 @@
 			$THEWIKI_BTN[] = array('/edit///HERE//', '편집');
 		}
 		$discussBoldCHK = getDiscussCHK($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL);
+		
 		if(!empty($discussBoldCHK['topic_title'])){
 			$discussBold = true;
 		}
@@ -319,6 +336,12 @@
 		$theMark = $arr['text'];
 		$theMarkDescription = preg_replace('~<\s*\bscript\b[^>]*>(.*?)<\s*\/\s*script\s*>~is', '', $theMark);
 	}
+	
+	if($_SESSION['AUTOVER_APPLY']){
+		$userAlert .= "<hr>덤프 버전을 r20".$_SESSION['AUTOVER_APPLY_VER']."으로 변경했습니다.";
+		
+		$_SESSION['AUTOVER_APPLY'] = false;
+	}
 ?>
 <!DOCTYPE html>
 <html>
@@ -375,14 +398,7 @@
 		<script defer type="text/javascript" src="/namuwiki/js/theseed.js"></script>
 		<script defer src="/js/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
 		<script defer src="/js/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous"></script>
-		<!-- Global site tag (gtag.js) - Google Analytics -->
-		<script async src="https://www.googletagmanager.com/gtag/js?id=UA-54316866-6"></script>
-		<script>
-		  window.dataLayer = window.dataLayer || [];
-		  function gtag(){dataLayer.push(arguments);}
-		  gtag('js', new Date());
-		  gtag('config', 'UA-54316866-6');
-		</script>
+		<!-- Google Analytics -->
 		<script>
 			document.addEventListener("DOMContentLoaded", function() {
 				renderMathInElement(document.body, {
@@ -430,7 +446,29 @@
 				<p class="wiki-edit-date"><?=$wiki_count?></p>
 				<div class="wiki-content clearfix">
 					<div class="wiki-inner-content">
-			<?php	if($THEWIKI_NOW_TITLE_REAL=="!MyPage"){
+			<?php	if($THEWIKI_NOW_TITLE_REAL=="!DenyUsers"){
+						$arr1 = "{{{+1 차단 해제내역은 기록되지 않으며 IP 차단내역은 [[http://thewiki.kr/request/|기술지원]]을 통해 문의해주시기 바랍니다.}}}[br]\n";
+						foreach(array_reverse($denyLists) as $key=>$value){
+							$get_admin = getAdminCHK($value['from']);
+							$arr['text'] .= " * '''".$get_admin['name']."''' 관리그룹 소속 [[내문서:".$value['from']."|".$value['from']."]]이/가 이용자 [[내문서:".$value['target']."|".$value['target']."]]을/를 '''".$value['startDate']." ~ ".$value['endDate']."''' 기간동안 차단함\n  * ".$value['reason']."\n";
+						}
+						require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
+						$theMark = new theMark($arr1.$arr['text']);
+						$theMark->pageTitle = $THEWIKI_NOW_TITLE_FULL;
+						if($noredirect){
+							$theMark->redirect = false;
+						}
+						if(!$settings['docStrikeLine']){
+							$theMark->strikeLine = true;
+						}
+						if($settings['imgAutoLoad']=='0'){
+							$theMark->imageAsLink = true;
+						}
+						$theMark = $theMark->toHtml();
+						echo $theMark;
+						$theMark = null;
+						$needCache = false;
+					} else if($THEWIKI_NOW_TITLE_REAL=="!MyPage"){
 						define('THEWIKI_FOOTER', true);
 						$THEWIKI_FOOTER = 0;
 						include $_SERVER['DOCUMENT_ROOT'].'/config.php';
