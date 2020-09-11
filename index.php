@@ -30,7 +30,7 @@
 			if(!$cnt){
 				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
 				$sql .= "('".$_SERVER['HTTP_CF_CONNECTING_IP']."', '$settingsref[docVersion]')";
-				mysqli_query($config_db_write, $sql);
+				mysqli_query($config_db, $sql);
 			}
 			
 			if($_GET['autover']=="180925_alphawiki"){
@@ -42,7 +42,7 @@
 			}
 			
 			$sql = "UPDATE settings SET docVersion = '$docVersion', enableAds = '1' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
-			mysqli_query($config_db_write, $sql);
+			mysqli_query($config_db, $sql);
 			
 			if(!empty($_SERVER['HTTP_REFERER'])){
 				$_SESSION['AUTOVER_APPLY'] = true;
@@ -59,7 +59,7 @@
 			if(!$cnt){
 				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
 				$sql .= "('".$_SERVER['HTTP_CF_CONNECTING_IP']."', '$settingsref[docVersion]')";
-				mysqli_query($config_db_write, $sql);
+				mysqli_query($config_db, $sql);
 			}
 			
 			die(header("Location: /settings"));
@@ -115,7 +115,7 @@
 			}
 			
 			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
-			mysqli_query($config_db_write, $sql);
+			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /settings"));
 		}
@@ -159,7 +159,7 @@
 		} else if($api_result->reason=='forbidden'){
 			$settings['enableAds'] = false;
 			$settings['enableAdsAdult'] = true;
-			$forceDocument = '{{{#!html <a>더위키</a>}}}에서 '.$api_result->expire.'까지 읽기 보호가 설정된 문서입니다.[br]이 문서는 View 권한이 '.$api_result->class.'등급 이상인 운영진만 볼 수 있습니다.';
+			$forceDocument = '[[TheWiki:관리내역/'.$THEWIKI_NOW_TITLE_FULL.'|더위키]]에서 '.$api_result->expire.'까지 읽기 보호가 설정된 문서입니다.[br]이 문서는 View 권한이 '.$api_result->class.'등급 이상인 운영진만 볼 수 있습니다.';
 		} else if($api_result->reason=='empty document'){
 			$empty = true;
 		} else if($api_result->reason=='mongoDB server error'){
@@ -246,7 +246,7 @@
 		if($THEWIKI_NOW_NAMESPACE==2){
 			$empty = false;
 			try{
-				$mongo2 = new MongoDB\Driver\Manager('mongodb://'.$mongoUser.':'.$mongoPW.'@'.$mongoHost.':27017/thewiki');
+				$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 				$query = array("title"=>"분류:".$THEWIKI_NOW_TITLE_REAL);
 				$query = new MongoDB\Driver\Query($query);
 				$arr2 = null;
@@ -357,17 +357,14 @@
 		<meta property="og:title" content="더위키 :: <?=$THEWIKI_NOW_TITLE_FULL?>">
 		<meta property="og:description" content="<?=trim(mb_substr(strip_tags($theMarkDescription), mb_strlen(strip_tags($theMarkDescription), 'utf8')/2, 300, 'utf8'))?>">
 		<meta property="og:url" content="http://thewiki.kr/w/<?=$THEWIKI_NOW_TITLE_FULL?>">
-		<link defer rel="stylesheet" href="/namuwiki/css/jquery-ui.min.css"/>
-		<link defer rel="stylesheet" href="/namuwiki/css/bootstrap.min.css"/>
-		<link defer rel="stylesheet" href="/namuwiki/css/ionicons.min.css"/>
-		<link defer rel="stylesheet" href="/namuwiki/css/katex.min.css"/>
-		<link defer rel="stylesheet" href="/namuwiki/css/flag-icon.min.css"/>
-		<link defer rel="stylesheet" href="/namuwiki/css/diffview.css"/>
-		<link defer rel="stylesheet" href="/namuwiki/css/nprogress.css"/>
-		<link defer rel="stylesheet" href="/namuwiki/css/bootstrap-fix.css"/>
+		<link async rel="stylesheet" href="/namuwiki/css/jquery-ui.min.css"/>
+		<link async rel="stylesheet" href="/namuwiki/css/bootstrap.min.css"/>
+		<link async rel="stylesheet" href="/namuwiki/css/ionicons.min.css"/>
+		<link async rel="stylesheet" href="/namuwiki/css/katex.min.css"/>
+		<link async rel="stylesheet" href="/namuwiki/css/flag-icon.min.css"/>
+		<link async rel="stylesheet" href="/namuwiki/css/bootstrap-fix.css"/>
 		<link defer rel="stylesheet" href="/namuwiki/css/layout.css"/>
 		<link defer rel="stylesheet" href="/namuwiki/css/wiki.css"/>
-		<link defer rel="stylesheet" href="/namuwiki/css/discuss.css"/>
 		<!--[if (!IE)|(gt IE 8)]><!-->
 		<script type="text/javascript" src="/namuwiki/js/jquery-2.1.4.min.js"></script>
 		<!--<![endif]-->
@@ -388,17 +385,23 @@
 				});
 			});
 		</script>
-		<script type="text/javascript" src="/namuwiki/js/jquery-ui.min.js"></script>
-		<script defer type="text/javascript" src="/namuwiki/js/tether.min.js"></script>
-		<script defer type="text/javascript" src="/namuwiki/js/bootstrap.min.js"></script>
-		<script defer type="text/javascript" src="/namuwiki/js/jquery.pjax.js"></script>
-		<script defer type="text/javascript" src="/namuwiki/js/nprogress.js"></script>
-		<script defer type="text/javascript" src="/namuwiki/js/dateformatter.js"></script>
+		<script type="text/javascript" src="/namuwiki/js/jquery-ui.min.js" async></script>
+		<script async type="text/javascript" src="/namuwiki/js/tether.min.js"></script>
+		<script async type="text/javascript" src="/namuwiki/js/bootstrap.min.js"></script>
+		<script async type="text/javascript" src="/namuwiki/js/jquery.pjax.js"></script>
+		<script async type="text/javascript" src="/namuwiki/js/dateformatter.js"></script>
 		<script defer type="text/javascript" src="/namuwiki/js/namu.js"></script>
 		<script defer type="text/javascript" src="/namuwiki/js/theseed.js"></script>
-		<script defer src="/js/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
-		<script defer src="/js/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous"></script>
-		<!-- Google Analytics -->
+		<script async src="/js/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
+		<script async src="/js/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous"></script>
+		<!-- Global site tag (gtag.js) - Google Analytics -->
+		<script async src="https://www.googletagmanager.com/gtag/js?id=UA-54316866-6"></script>
+		<script>
+		  window.dataLayer = window.dataLayer || [];
+		  function gtag(){dataLayer.push(arguments);}
+		  gtag('js', new Date());
+		  gtag('config', 'UA-54316866-6');
+		</script>
 		<script>
 			document.addEventListener("DOMContentLoaded", function() {
 				renderMathInElement(document.body, {
@@ -550,7 +553,7 @@
 										<label class="control-label">문서 캐싱</label>
 										<div class="checkbox">
 											<label>
-									<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']){ ?>
+									<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']||!$settings['docBetaParser']){ ?>
 												<input type="hidden" name="docCA" value=""><input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
 									<?php	} else { ?>
 												<input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?>> 사용
@@ -581,10 +584,53 @@
 			theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], $theMark);
 		}
 		echo $theMark;
+		$trigger = true;
+		if($THEWIKI_NOW_NAMESPACE<10){
+			try{
+				$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+				$query = new MongoDB\Driver\Query(array('$text'=>array('$search'=>$THEWIKI_NOW_TITLE_FULL)), array('limit'=>200));
+				$arr = $mongo->executeQuery('thewiki.docData'.$settingsref['docVersion'], $query);
+				$print = array();
+				foreach($arr as $doc){
+					$trigger = false;
+					if($doc->namespace==1||$doc->namespace==6){
+						continue;
+					}
+					if($doc->namespace>0){
+						$find = "SELECT * FROM wiki_contents_namespace WHERE code = '$doc->namespace' OR fake = '$doc->namespace'";
+						$findres = mysqli_query($wiki_db, $find);
+						$findarr = mysqli_fetch_array($findres);
+						
+						if($findarr){
+							$docTitle = $doc->title;
+							$doc->title = $findarr[3].":".$doc->title;
+							if($findarr[2]==$doc->namespace){
+								if($findarr[4]!=$settings['docVersion']){
+									$doc->title = $docTitle;
+								}
+							}
+						}
+					}
+					if($doc->title==$THEWIKI_NOW_TITLE_FULL){
+						continue;
+					}
+					$print[] = $doc->title;
+				}
+			} catch (MongoDB\Driver\Exception\Exception $e){
+				//
+			}
+			if(!$trigger){
+				shuffle($print);
+				echo '<div class="clearfix"></div><div class="wiki-category"><h2>관련 문서</h2><ul>';
+				for($x=0;$x<9;$x++){
+					echo '<li><a href="/w/'.rawurlencode($print[$x]).'">'.$print[$x].'</a></li> ';
+				}
+				echo '</ul></div>';
+			}
+		}
 	} else { ?>
 		<!-- 구글 검색광고 영역 -->
-<?php
-		$cURLs = "http://ac.search.naver.com/nx/ac?_callback=result&q=".rawurlencode($THEWIKI_NOW_TITLE_FULL)."&q_enc=UTF-8&st=100&frm=nv&r_format=json&r_enc=UTF-8&r_unicode=0&t_koreng=1&ans=1";
+<?php	$cURLs = "http://ac.search.naver.com/nx/ac?_callback=result&q=".rawurlencode($THEWIKI_NOW_TITLE_FULL)."&q_enc=UTF-8&st=100&frm=nv&r_format=json&r_enc=UTF-8&r_unicode=0&t_koreng=1&ans=1";
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_URL, $cURLs);
 		curl_setopt($ch, CURLOPT_HEADER, 0); 
@@ -614,11 +660,9 @@
 		$THEWIKI_FOOTER = 0;
 		include $_SERVER['DOCUMENT_ROOT'].'/config.php';
 		die('</div></div>'.$THEWIKI_FOOTER.'</article></div></body></html>');
-	}
-?>
+	} ?>
 					</div>
 				</div>
-			
 				<?=$THEWIKI_FOOTER?>
 			</article>
 		</div>

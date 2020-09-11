@@ -13,53 +13,66 @@
 					$data[] = $THEWIKI_NOW_NAMESPACE_NAME.":".$searcharr[2];
 					$loop++;
 				}
-				if($loop>10){
+				if($loop>15){
 					break;
 				}
 			}
 			$dbMode = true;
 		} else {
 			if($THEWIKI_NOW_NAMESPACE==2||$THEWIKI_NOW_NAMESPACE==3||$THEWIKI_NOW_NAMESPACE==4){
-				if($settings['docVersion']==$settingsref['docVersion']){
-					$settings['docVersion'] = '180326';
+				if($settings['docVersion']!='180925'&&$settings['docVersion']>=180326){
+					$settings['docVersion'] = '170327';
 				}
-				$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 			} else {
-				if($settings['docVersion']==$settingsref['docVersion']){
-					$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
-				} else {
-					if(!empty($THEWIKI_NOW_NAMESPACE_FAKE)){
-						$THEWIKI_NOW_NAMESPACE = $THEWIKI_NOW_NAMESPACE_FAKE;
-					}
-					$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+				if($settings['docVersion']=='180925'&&!empty($THEWIKI_NOW_NAMESPACE_FAKE)){
+					$THEWIKI_NOW_NAMESPACE = $THEWIKI_NOW_NAMESPACE_FAKE;
 				}
 			}
+			$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 		}
-		if(!$dbMode&&!empty($THEWIKI_NOW_TITLE_REAL)){
+		if(!$dbMode){
 			if(empty($THEWIKI_NOW_NAMESPACE)){
 				$THEWIKI_NOW_NAMESPACE = "0";
 			}
-			$query = new MongoDB\Driver\Query(array('namespace' => $THEWIKI_NOW_NAMESPACE, 'title' => array('$regex'=>'^'.$THEWIKI_NOW_TITLE_REAL)), array('limit' => 10 ));
-			switch($settings['docVersion']){
-				case '160229': $arr = $mongo->executeQuery('nisdisk.docData160229', $query); break;
-				case '160329': $arr = $mongo->executeQuery('nisdisk.docData160329', $query); break;
-				case '160425': $arr = $mongo->executeQuery('nisdisk.docData160425', $query); break;
-				case '160530': $arr = $mongo->executeQuery('nisdisk.docData160530', $query); break;
-				case '160627': $arr = $mongo->executeQuery('nisdisk.docData160627', $query); break;
-				case '160728': $arr = $mongo->executeQuery('nisdisk.docData160728', $query); break;
-				case '160829': $arr = $mongo->executeQuery('nisdisk.docData160829', $query); break;
-				case '161031': $arr = $mongo->executeQuery('nisdisk.docData161031', $query); break;
-				case '170327': $arr = $mongo->executeQuery('nisdisk.docData170327', $query); break;
-				case '180326': $arr = $mongo->executeQuery('nisdisk.docData180326', $query); break;
-				case '180925': $arr = $mongo->executeQuery('nisdisk.docData180925', $query); break;
-				default: $arr = $mongo->executeQuery('nisdisk.docData190312', $query); break;
+			if(!empty($THEWIKI_NOW_TITLE_REAL)){
+				$query = new MongoDB\Driver\Query(array('namespace' => $THEWIKI_NOW_NAMESPACE, 'title' => array('$regex'=>"^".$THEWIKI_NOW_TITLE_REAL)), array('limit' => 10 ));
+			} else {
+				if(!empty($THEWIKI_NOW_TITLE_FULL)){
+					$query = new MongoDB\Driver\Query(array('namespace' => $THEWIKI_NOW_NAMESPACE), array('limit' => 10 ));
+				}
 			}
+			$arr = $mongo->executeQuery('thewiki.docData'.$settings['docVersion'], $query);
 			if(!empty($THEWIKI_NOW_NAMESPACE_NAME)){
 				$THEWIKI_NOW_NAMESPACE_NAME = $THEWIKI_NOW_NAMESPACE_NAME.":";
 			}
 			$data = array();
+			$trigger = true;
 			foreach($arr as $doc){
+				$trigger = false;
 				$data[] = $THEWIKI_NOW_NAMESPACE_NAME.$doc->title;
+			}
+			if($trigger){
+				$query = new MongoDB\Driver\Query(array('$text'=>array('$search'=>$THEWIKI_NOW_TITLE_FULL)), array('limit' => 10 ));
+				$arr = $mongo->executeQuery('thewiki.docData'.$settingsref['docVersion'], $query);
+				foreach($arr as $doc){
+					$trigger = false;
+					if($doc->namespace>0){
+						$find = "SELECT * FROM wiki_contents_namespace WHERE code = '$doc->namespace' OR fake = '$doc->namespace'";
+						$findres = mysqli_query($wiki_db, $find);
+						$findarr = mysqli_fetch_array($findres);
+						
+						if($findarr){
+							$docTitle = $doc->title;
+							$doc->title = $findarr[3].":".$doc->title;
+							if($findarr[2]==$doc->namespace){
+								if($findarr[4]!=$settings['docVersion']){
+									$doc->title = $docTitle;
+								}
+							}
+						}
+					}
+					$data[] = $doc->title;
+				}
 			}
 		}
 		echo json_encode($data, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
