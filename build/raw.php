@@ -11,12 +11,24 @@
 		die(header('Location: /w/TheWiki:%ED%99%88'));
 	}
 	
-	if($version>0){
-		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docReVersion'=>$version, 'option'=>'original');
-	} else if($version==null){
-		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
+	$sql = "SELECT * FROM wiki_contents_moved WHERE namespace = '$THEWIKI_NOW_NAMESPACE' AND title = binary('$THEWIKI_NOW_TITLE_REAL') ORDER BY no DESC LIMIT 1";
+	$res = mysqli_query($wiki_db, $sql);
+	$moved_arr = mysqli_fetch_array($res);
+	
+	if($moved_arr){
+		$THEWIKI_SQL_NAMESPACE = $moved_arr[1];
+		$THEWIKI_SQL_TITLE_REAL = $moved_arr[2];
 	} else {
-		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'divide'=>'1', 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docVersion'=>$settings['docVersion'], 'option'=>'original');
+		$THEWIKI_SQL_NAMESPACE = $THEWIKI_NOW_NAMESPACE;
+		$THEWIKI_SQL_TITLE_REAL = $THEWIKI_NOW_TITLE_REAL;
+	}
+	
+	if($version>0){
+		$_POST = array('namespace'=>$THEWIKI_SQL_NAMESPACE, 'title'=>$THEWIKI_SQL_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docReVersion'=>$version, 'option'=>'original');
+	} else if($version==null){
+		$_POST = array('namespace'=>$THEWIKI_SQL_NAMESPACE, 'title'=>$THEWIKI_SQL_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
+	} else {
+		$_POST = array('namespace'=>$THEWIKI_SQL_NAMESPACE, 'title'=>$THEWIKI_SQL_TITLE_REAL, 'noredirect'=>true, 'divide'=>'1', 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docVersion'=>$settings['docVersion'], 'option'=>'original');
 	}
 	
 	define('MODEINCLUDE', true);
@@ -45,7 +57,7 @@
 		die('<script> location.href="'.str_replace('/w/', '/raw/', $api_result->link).'"; </script>');
 	}
 	
-	if(defined("isdeleted")){
+	if(defined('isdeleted')){
 		header("Content-Type: text/html; charset=UTF-8");
 		$api_result->data = '';
 	}
@@ -54,5 +66,5 @@
 		header("Content-Type: text/plain; charset=UTF-8");
 	}
 	
-	die('<xmp>'.$api_result->data.'</xmp>');
+	die($api_result->data);
 ?>

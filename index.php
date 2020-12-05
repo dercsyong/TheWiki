@@ -17,7 +17,10 @@
 		$THEWIKI_NOW_TITLE_REAL = "!DenyUsers";
 		$settings['enableViewCount'] = 0;
 		$settings['docCache'] = 0;
-		$denyLists = getdenyLists();
+		$settings['enableNotice'] = false;
+		$denyLists = array();
+		$denyLists[] = getdenyLists('user');
+		$denyLists[] = getdenyLists('ip');
 	}
 	if(!empty($_GET['settings'])){
 		$THEWIKI_NOW_TITLE_FULL = $_SERVER['HTTP_CF_CONNECTING_IP']." 개인 설정";
@@ -47,7 +50,11 @@
 			if(!empty($_SERVER['HTTP_REFERER'])){
 				$_SESSION['AUTOVER_APPLY'] = true;
 				$_SESSION['AUTOVER_APPLY_VER'] = $docVersion;
-				die('<script> location.href = "'.$_SERVER['HTTP_REFERER'].'"; </script>');
+				if($_SERVER['HTTP_REFERER']=="http://dump.thewiki.kr/"){
+					die(header("Location: /settings"));
+				} else {
+					die('<script> location.href = "'.$_SERVER['HTTP_REFERER'].'"; </script>');
+				}
 			} else {
 				die(header("Location: /"));
 			}
@@ -125,8 +132,12 @@
 		die(header('Location: /w/TheWiki:%ED%99%88'));
 	}
 	
+	if(!empty($_SESSION['THEWIKI_MOVED_DOCUMENT'])){
+		$userAlert = '<a href="'.rawurlencode($_SESSION['THEWIKI_MOVED_DOCUMENT']).'?noredirect=1">'.$_SESSION['THEWIKI_MOVED_DOCUMENT'].'</a>에서 넘어왔습니다.';
+		$_SESSION['THEWIKI_MOVED_DOCUMENT'] = null;
+	}
 	if($THEWIKI_MOVED_DOCUMENT){
-		$userAlert = $THEWIKI_BEFORE_TITLE_FULL.'에서 이동된 문서입니다.';
+		$userAlert = '<b>'.$THEWIKI_BEFORE_TITLE_FULL.'</b>에서 이동된 문서입니다.';
 	}
 	
 	if($settings['enableViewCount']){
@@ -184,6 +195,7 @@
 	
 	// 애드센스 정책
 	if(count(explode("틀:성적요소", $arr['text']))>1||count(explode("틀:심플/성적요소", $arr['text']))>1){
+		$adOriginal = $settings['enableAds'];
 		$settings['enableAds'] = false;
 		$settings['enableAdsAdult'] = true;
 	}
@@ -213,17 +225,18 @@
 			$THEWIKI_BTN[] = array('/backlink///HERE//', '역링크');
 		}
 		$THEWIKI_BTN[] = array('/history///HERE//', '수정 내역');
-		if(!empty($_SESSION['name'])){
+		$ipCheck = getViewerCHK($_SERVER['HTTP_CF_CONNECTING_IP']);
+		if($ipCheck['edit']){
 			$THEWIKI_BTN[] = array('/edit///HERE//', '편집');
 		}
-		$discussBoldCHK = getDiscussCHK($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL);
+		$discussBoldSQL = "SELECT * FROM wiki_discuss_target WHERE namespace = '$THEWIKI_NOW_NAMESPACE' AND title = binary('$THEWIKI_NOW_TITLE_REAL') AND status = '0' LIMIT 1";
+		$discussBoldRES = mysqli_query($wiki_db, $discussBoldSQL);
+		$discussBoldCHK = mysqlI_fetch_array($discussBoldRES);
 		
 		if(!empty($discussBoldCHK['topic_title'])){
 			$discussBold = true;
 		}
 		$THEWIKI_BTN[] = array('/discuss///HERE///0', '토론');
-	} else {
-		$THEWIKI_BTN[] = array('/w/TheWiki:%EC%88%98%EC%9D%B5%EA%B8%88%20%EB%B3%B4%EA%B3%A0%EC%84%9C', '광고 수익금 보고서');
 	}
 	
 	$CacheCheck = theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], null);
@@ -246,23 +259,27 @@
 		if($THEWIKI_NOW_NAMESPACE==2){
 			$empty = false;
 			try{
-				$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
+				$mongo2 = new MongoDB\Driver\Manager('mongodb://'.$mongoUser.':'.$mongoPW.'@'.$mongoHost.':27017/thewiki');
 				$query = array("title"=>"분류:".$THEWIKI_NOW_TITLE_REAL);
 				$query = new MongoDB\Driver\Query($query);
 				$arr2 = null;
 				if($settings['docVersion']==$settingsref['docVersion']){
-					$print = $mongo2->executeQuery('thewiki.category'.$settingsref['docVersion'], $query);
+					$print = $mongo2->executeQuery('thewiki.categoryALL', $query);
 					foreach($print as $value){
-						$arr2 = "= 상위 분류 =\n";
-						foreach($value->up as $topCa){
-							$arr2 .= "[[:".$topCa."]]\n";
+						if(!empty($value->up)){
+							$arr2 = "= 상위 분류 =\n";
+							foreach($value->up as $topCa){
+								$arr2 .= "[[:".$topCa."]]\n";
+							}
 						}
-						$arr2 .= "= 하위 분류 =\n";
-						foreach($value->btm as $btmCa){
-							$arr2 .= "[[:".$btmCa."]]\n";
+						if(!empty($value->btm)){
+							$arr2 .= "= 하위 분류 =\n";
+							foreach($value->btm as $btmCa){
+								$arr2 .= "[[:".$btmCa."]]\n";
+							}
 						}
 					}
-					$print = $mongo2->executeQuery('thewiki.category'.$settings['docVersion'], $query);
+					$print = $mongo2->executeQuery('thewiki.categoryALL', $query);
 					foreach($print as $value){
 						$arr2 .= "= 포함된 문서 =\n";
 						foreach($value->includeDoc as $inDoc){
@@ -272,13 +289,17 @@
 				} else {
 					$print = $mongo2->executeQuery('thewiki.category'.$settings['docVersion'], $query);
 					foreach($print as $value){
-						$arr2 = "= 상위 분류 =\n";
-						foreach($value->up as $topCa){
-							$arr2 .= "[[:".$topCa."]]\n";
+						if(!empty($value->up)){
+							$arr2 = "= 상위 분류 =\n";
+							foreach($value->up as $topCa){
+								$arr2 .= "[[:".$topCa."]]\n";
+							}
 						}
-						$arr2 .= "= 하위 분류 =\n";
-						foreach($value->btm as $btmCa){
-							$arr2 .= "[[:".$btmCa."]]\n";
+						if(!empty($value->btm)){
+							$arr2 .= "= 하위 분류 =\n";
+							foreach($value->btm as $btmCa){
+								$arr2 .= "[[:".$btmCa."]]\n";
+							}
 						}
 						$arr2 .= "= 포함된 문서 =\n";
 						foreach($value->includeDoc as $inDoc){
@@ -321,6 +342,7 @@
 			if(!$settings['docShowInclude']){
 				$theMark->included = true;
 			}
+			
 			$theMark = $theMark->toHtml();
 			$theMarkDescription = preg_replace('~<\s*\bscript\b[^>]*>(.*?)<\s*\/\s*script\s*>~is', '', $theMark);
 		}
@@ -385,23 +407,15 @@
 				});
 			});
 		</script>
-		<script type="text/javascript" src="/namuwiki/js/jquery-ui.min.js" async></script>
+		<script type="text/javascript" src="/namuwiki/js/jquery-ui.min.js"></script>
 		<script async type="text/javascript" src="/namuwiki/js/tether.min.js"></script>
 		<script async type="text/javascript" src="/namuwiki/js/bootstrap.min.js"></script>
 		<script async type="text/javascript" src="/namuwiki/js/jquery.pjax.js"></script>
 		<script async type="text/javascript" src="/namuwiki/js/dateformatter.js"></script>
 		<script defer type="text/javascript" src="/namuwiki/js/namu.js"></script>
 		<script defer type="text/javascript" src="/namuwiki/js/theseed.js"></script>
-		<script async src="/js/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
-		<script async src="/js/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous"></script>
-		<!-- Global site tag (gtag.js) - Google Analytics -->
-		<script async src="https://www.googletagmanager.com/gtag/js?id=UA-54316866-6"></script>
-		<script>
-		  window.dataLayer = window.dataLayer || [];
-		  function gtag(){dataLayer.push(arguments);}
-		  gtag('js', new Date());
-		  gtag('config', 'UA-54316866-6');
-		</script>
+		<script src="/js/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
+		<script src="/js/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous"></script>
 		<script>
 			document.addEventListener("DOMContentLoaded", function() {
 				renderMathInElement(document.body, {
@@ -427,7 +441,13 @@
 		</div>
 		<div class="content-wrapper">
 			<article class="container-fluid wiki-article">
-	<?php	if($settings['enableNotice']){ ?>
+	<?php	if($settings['enableNotice']){
+				$text = getTheWikiAdvertise('ad1');
+				if($userAlert!=getTheWikiAdvertise('default')){
+					$userAlert = $userAlert.'<hr>'.$text;
+				} else {
+					$userAlert = $text;
+				} ?>
 				<div class="alert alert-info fade in last" id="userDiscussAlert" role="alert">
 					<?=$userAlert?>
 				</div>
@@ -450,10 +470,40 @@
 				<div class="wiki-content clearfix">
 					<div class="wiki-inner-content">
 			<?php	if($THEWIKI_NOW_TITLE_REAL=="!DenyUsers"){
-						$arr1 = "{{{+1 차단 해제내역은 기록되지 않으며 IP 차단내역은 [[http://thewiki.kr/request/|기술지원]]을 통해 문의해주시기 바랍니다.}}}[br]\n";
+						echo blockDevTool();
+						$arr1 = "{{{+1 차단 해제내역은 기록되지 않으며, 차단내역은 현재 차단된 상태인 경우에만 조회됩니다.[br]그 외 차단내역/해제내역은 [[http://thewiki.kr/request/|기술지원]]을 통해 요청해주세요.}}}[br]\n";
+						$price = array();
+						foreach ($denyLists as $key => $row){
+							$price[$key] = $row['startDate'];
+						}
+						array_multisort($price, SORT_ASC, $denyLists);
+						
 						foreach(array_reverse($denyLists) as $key=>$value){
 							$get_admin = getAdminCHK($value['from']);
-							$arr['text'] .= " * '''".$get_admin['name']."''' 관리그룹 소속 [[내문서:".$value['from']."|".$value['from']."]]이/가 이용자 [[내문서:".$value['target']."|".$value['target']."]]을/를 '''".$value['startDate']." ~ ".$value['endDate']."''' 기간동안 차단함\n  * ".$value['reason']."\n";
+							$arr['text'] .= " * '''".$get_admin['name']." [[내문서:".$value['from']."|".$value['from']."]]''' => ";
+							if($value['cidr']){
+								$arr['text'] .= " IP ".$value['target']."/".$value['cidr']." ";
+								if(!$value['topic']&&!$value['edit']){
+									$arr['text'] .= "토론/편집";
+								} else if(!$value['edit']){
+									$arr['text'] .= "편집";
+								} else if(!$value['topic']){
+									$arr['text'] .= "토론";
+								}
+								$arr['text'] .= " 차단 '''(".$value['startDate']." ~ ".$value['endDate'].")'''\n";
+							} else {
+								$arr['text'] .= " 이용자 [[내문서:".$value['target']."|".$value['target']."]] 차단 '''(".$value['startDate']." ~ ".$value['endDate'].")'''\n";
+							}
+							preg_match("/#[0-9]+/i", htmlspecialchars($value['reason']), $match);
+							$match[0] = str_replace("#", "", $match[0]);
+							$value['reason'] = str_replace("#".$match[0], "<a href='/RecentDiscuss?threadNo=".$match[0]."'>#".$match[0]."</a>", $value['reason']);
+							
+							preg_match("/[0-9]+/i", htmlspecialchars($value['reason']), $match);
+							if(substr($match[0], 0, 2)==substr($value['reason'], 0, 2)){
+								$value['reason'] = "<a href='/Recent?docuNo=".$match[0]."'>".$match[0]."</a>".substr($value['reason'], strlen($match[0]));
+							}
+							
+							$arr['text'] .= "  * 사유 : ".$value['reason']."\n";
 						}
 						require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
 						$theMark = new theMark($arr1.$arr['text']);
@@ -471,6 +521,7 @@
 						echo $theMark;
 						$theMark = null;
 						$needCache = false;
+						$THEWIKI_NOW_NAMESPACE = 10;
 					} else if($THEWIKI_NOW_TITLE_REAL=="!MyPage"){
 						define('THEWIKI_FOOTER', true);
 						$THEWIKI_FOOTER = 0;
@@ -479,7 +530,27 @@
 						<h4>
 							<a href="settingscreate">설정파일 생성</a>이 필요합니다.
 						</h4>
-			<?php	} else { ?>
+						<label style="font-size:0.8em;">과거 덤프버전을 확인하시려면 <a href="//wiki.thewiki.kr/settings">더위키 미러</a>로 접속해주세요.</label>
+			<?php	} else {
+						echo blockDevTool(); ?>
+						<link href="/css/uploadfile.css" rel="stylesheet">
+						<script src="/js/jquery.uploadfile.js"></script>
+						<script type="text/javascript">
+							$(document).ready(function(){
+								$("#fileuploader").uploadFile({
+									url:"Upload/user.php",
+									fileName: "<?=$settings['ip']?>",
+									returnType:"json",
+									singleFileUploads : true,
+									maxFileSize : 10240*1024,
+									uploadStr : "업로드",
+									doneStr : "완료",
+									abortStr : "취소",
+									allowedTypes: "jpg, png, gif",
+									extErrorStr : ", 다응 확장자만 업로드할 수 있습니다 : "
+								});
+							});
+						</script>
 						<form action="settingsapply" method="post" name="settings">
 							<section class="tab-content settings-section">
 								<div role="tabpanel" class="tab-pane fade in active" id="siteLayout">
@@ -490,6 +561,7 @@
 											<option value="<?=$value?>" <?php if($settings['docVersion']==$value){ echo 'selected'; } ?>>20<?=$value?><?php if($settingsref['docVersion']==$value){ echo ' (* 권장)'; }?></option>
 								<?php	} ?>
 										</select>
+										<label style="font-size:0.8em;">과거 덤프버전을 확인하시려면 <a href="//wiki.thewiki.kr/settings">더위키 미러</a>로 접속해주세요.</label>
 									</div>
 									
 									<div class="form-group" id="imagesAutoLoad">
@@ -514,7 +586,7 @@
 									</div>
 									
 									<div class="form-group" id="Notice">
-										<label class="control-label">공지사항 보이기</label>
+										<label class="control-label">공지사항 보이기</label> <label style="font-size:0.8em;">(텍스트 광고 포함)</label>
 										<div class="checkbox">
 											<label>
 												<input type="checkbox" name="Notice" <?php if($settings['enableNotice']){ echo "checked"; }?>> 사용
@@ -553,7 +625,7 @@
 										<label class="control-label">문서 캐싱</label>
 										<div class="checkbox">
 											<label>
-									<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']||!$settings['docBetaParser']){ ?>
+									<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']){ ?>
 												<input type="hidden" name="docCA" value=""><input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
 									<?php	} else { ?>
 												<input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?>> 사용
@@ -562,6 +634,10 @@
 										</div>
 									</div>
 									
+									<div class="form-group" id="documentShowInclude">
+										<label class="control-label">프로필 이미지 변경</label>
+										<div id="fileuploader">Loading...</div>
+									</div>
 									<div class="form-group">
 										&nbsp;	<button type="submit" class="btn btn-primary">적용</button>
 									</div>
@@ -585,10 +661,10 @@
 		}
 		echo $theMark;
 		$trigger = true;
-		if($THEWIKI_NOW_NAMESPACE<10){
+		if($THEWIKI_NOW_NAMESPACE<10&&$THEWIKI_NOW_NAMESPACE!=5){
 			try{
 				$mongo = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
-				$query = new MongoDB\Driver\Query(array('$text'=>array('$search'=>$THEWIKI_NOW_TITLE_FULL)), array('limit'=>200));
+				$query = new MongoDB\Driver\Query(array('$text'=>array('$search'=>$THEWIKI_NOW_TITLE_FULL)), array('limit'=>5));
 				$arr = $mongo->executeQuery('thewiki.docData'.$settingsref['docVersion'], $query);
 				$print = array();
 				foreach($arr as $doc){
@@ -619,10 +695,13 @@
 			} catch (MongoDB\Driver\Exception\Exception $e){
 				//
 			}
-			if(!$trigger){
+			if(!$trigger&&!empty($print)){
 				shuffle($print);
 				echo '<div class="clearfix"></div><div class="wiki-category"><h2>관련 문서</h2><ul>';
-				for($x=0;$x<9;$x++){
+				for($x=0;$x<5;$x++){
+					if(empty($print[$x])){
+						break;
+					}
 					echo '<li><a href="/w/'.rawurlencode($print[$x]).'">'.$print[$x].'</a></li> ';
 				}
 				echo '</ul></div>';

@@ -1,4 +1,5 @@
 <?php
+	session_start();
 	define('THEWIKI', true);
 	$THEWIKI_SUBSTRLEN = explode('/', $_SERVER['REQUEST_URI'])[1];
 	include $_SERVER['DOCUMENT_ROOT'].'/config.php';
@@ -51,6 +52,26 @@
 				$trigger = false;
 				$data[] = $THEWIKI_NOW_NAMESPACE_NAME.$doc->title;
 			}
+			
+			if(empty($data)){
+				$search = "SELECT * FROM wiki_contents_history WHERE namespace = '$THEWIKI_NOW_NAMESPACE' AND title LIKE '".$THEWIKI_NOW_TITLE_REAL."%'";
+				$searchres = mysqli_query($wiki_db, $search);
+				$data = array();
+				if($THEWIKI_NOW_NAMESPACE>0){
+					$THEWIKI_NOW_NAMESPACE_NAME = $THEWIKI_NOW_NAMESPACE_NAME.":";
+				}
+				while($searcharr = mysqli_fetch_array($searchres)){
+					if(!in_array($THEWIKI_NOW_NAMESPACE_NAME.$searcharr[2], $data)){
+						$data[] = $THEWIKI_NOW_NAMESPACE_NAME.$searcharr[2];
+						$trigger = false;
+						$loop++;
+					}
+					if($loop>15){
+						break;
+					}
+				}
+			}
+			
 			if($trigger){
 				$query = new MongoDB\Driver\Query(array('$text'=>array('$search'=>$THEWIKI_NOW_TITLE_FULL)), array('limit' => 10 ));
 				$arr = $mongo->executeQuery('thewiki.docData'.$settingsref['docVersion'], $query);
