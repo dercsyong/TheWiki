@@ -111,7 +111,12 @@
 					$enableAds = 0;
 				}
 			}
-			if(!$imgAutoLoad||!$docStrikeLine||!$docShowInclude){
+			if($_POST['docF']=="on"){
+				$docfold = 1;
+			} else {
+				$docfold = 0;
+			}
+			if(!$imgAutoLoad||!$docStrikeLine||!$docShowInclude||$docfold){
 				$docCache = 0;
 			} else {
 				if($_POST['docCA']=="on"){
@@ -121,7 +126,7 @@
 				}
 			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
+			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache', docfold = '$docfold' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
 			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /settings"));
@@ -259,7 +264,7 @@
 		if($THEWIKI_NOW_NAMESPACE==2){
 			$empty = false;
 			try{
-				$mongo2 = new MongoDB\Driver\Manager('mongodb://'.$mongoUser.':'.$mongoPW.'@'.$mongoHost.':27017/thewiki');
+				$mongo2 = new MongoDB\Driver\Manager('mongodb://username:password@localhost:27017/thewiki');
 				$query = array("title"=>"분류:".$THEWIKI_NOW_TITLE_REAL);
 				$query = new MongoDB\Driver\Query($query);
 				$arr2 = null;
@@ -324,11 +329,18 @@
 		}
 		
 		if(!empty($arr['text'])){
-			require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
+			if(defined("loginUserAdmin")){
+				require_once("/".theMarkBetaPath."/".theMarkBetaName.".php");
+			} else {
+				require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
+			}
 			$theMark = new theMark($arr['text']);
 			$theMark->pageTitle = $THEWIKI_NOW_TITLE_FULL;
 			if($noredirect){
 				$theMark->redirect = false;
+			}
+			if($settings['docfold']){
+				$theMark->docfold = true;
 			}
 			if(!$settings['docStrikeLine']){
 				$theMark->strikeLine = true;
@@ -368,6 +380,9 @@
 <!DOCTYPE html>
 <html>
 	<head>
+<?php	if(!$settings['enableAdsAdult']&&$settings['enableAds']&&!$empty){ ?>
+			<!-- 구글 자동광고 영역 -->
+<?php	} ?>
 		<meta charset="utf-8"/>
 		<title><?=$THEWIKI_NOW_NAMESPACE==10?'더위키:'.$THEWIKI_NOW_TITLE_REAL:$THEWIKI_NOW_TITLE_FULL?></title>
 		<meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width"/>
@@ -428,18 +443,9 @@
 		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/styles/default.min.css">
 		<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/highlight.min.js"></script>
 		<script>hljs.initHighlightingOnLoad();</script>
-<?php	if(!$settings['enableAdsAdult']&&$settings['enableAds']&&!$empty){ ?>
-			<!-- 구글 자동광고 영역 -->
-<?php	} ?>
 	</head>
 	<body class="senkawa hide-sidebar fixed-size fixed-1300">
-		<script defer type="text/javascript" src="/namuwiki/js/layout.js?e4665c6b"></script>
-		<div class="navbar-wrapper">
-			<nav class="navbar navbar-dark bg-inverse navbar-static-top">
-				<?=$THEWIKI_NAV?>
-			</nav>
-		</div>
-		<div class="content-wrapper">
+		<?=$THEWIKI_SIDEBAR?>
 			<article class="container-fluid wiki-article">
 	<?php	if($settings['enableNotice']){
 				$text = getTheWikiAdvertise('ad1');
@@ -625,11 +631,20 @@
 										<label class="control-label">문서 캐싱</label>
 										<div class="checkbox">
 											<label>
-									<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']){ ?>
+									<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']||$settings['docfold']){ ?>
 												<input type="hidden" name="docCA" value=""><input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
 									<?php	} else { ?>
 												<input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?>> 사용
 									<?php	} ?>
+											</label>
+										</div>
+									</div>
+									
+									<div class="form-group" id="documentShowInclude">
+										<label class="control-label">문단 접기 활성화</label>
+										<div class="checkbox">
+											<label>
+												<input type="checkbox" name="docF" <?php if($settings['docfold']){ echo "checked"; }?>> 사용
 											</label>
 										</div>
 									</div>
@@ -647,10 +662,9 @@
 			<?php	} ?>
 					</div>
 				</div>
-				
-				<?=$THEWIKI_FOOTER?>
 			</article>
 		</div>
+		<?=$THEWIKI_FOOTER?>
 	</body>
 </html>
 		<?php	die(); } // 더위키 설정 페이지
@@ -742,8 +756,8 @@
 	} ?>
 					</div>
 				</div>
-				<?=$THEWIKI_FOOTER?>
 			</article>
 		</div>
+		<?=$THEWIKI_FOOTER?>
 	</body>
 </html>

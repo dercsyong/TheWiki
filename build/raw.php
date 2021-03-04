@@ -7,6 +7,11 @@
 	include $_SERVER['DOCUMENT_ROOT'].'/config.php';
 	$version = $page;
 	
+	if(!defined('loginUser')){
+		header("Content-Type: text/plain; charset=UTF-8");
+		die('login required');
+	}
+	
 	if(empty($THEWIKI_NOW_TITLE_FULL)||empty($THEWIKI_NOW_TITLE_REAL)){
 		die(header('Location: /w/TheWiki:%ED%99%88'));
 	}
