@@ -126,8 +126,17 @@
 			} else {
 				$showSidebar = 0;
 			}
+			if($docfold){
+				$enablePjax = 0;
+			} else {
+				if($_POST['enablepjax']=="on"){
+					$enablePjax = 1;
+				} else {
+					$enablePjax = 0;
+				}
+			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache', docfold = '$docfold', showSidebar = '$showSidebar' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
+			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache', docfold = '$docfold', showSidebar = '$showSidebar', enablePjax = '$enablePjax' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
 			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /settings"));
@@ -187,9 +196,7 @@
 		}
 	}
 	
-	if($api_result->type=='refresh'){
-		die(header("Location: $api_result->link"));
-	} else if(empty($arr['text'])){
+	if(empty($arr['text'])){
 		$arr['text'] = $api_result->data;
 		$contribution = $api_result->contribution;
 		if($contribution==''){
@@ -257,10 +264,10 @@
 		$THEWIKI_BTN[] = array('/discuss///HERE///0', '토론');
 	}
 	
-	$CacheCheck = theWikiCacheNewMongo($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], null, null);
+	$CacheCheck = theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], null, null);
 	if(!$CacheCheck['status']){
 		$CacheCheck['isExpire'] = 1;
-		if(defined('isdeleted')&&$arr['text']==' '){
+		if(defined('isdeleted')){
 			$CacheCheck['isExpire'] = 0;
 			$arr['text'] = '{{{#!html <hr>이 문서는 삭제되었습니다.<hr><a href="/edit/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_top">새로운 문서 만들기</a>}}}';
 		} else if($THEWIKI_NOW_NAMESPACE==3){
@@ -604,6 +611,19 @@
 							</div>
 						</div>
 						
+						<div class="form-group" id="enablePjax">
+							<label class="control-label">pjax 활성화</label>
+							<div class="checkbox">
+								<label>
+						<?php	if($settings['docfold']){ ?>
+									<input type="hidden" name="enablepjax" value=""><input type="checkbox" name="enablepjax" <?php if($settings['enablePjax']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
+						<?php	} else { ?>
+									<input type="checkbox" name="enablepjax" <?php if($settings['enablePjax']){ echo "checked"; }?>> 사용
+						<?php	} ?>
+								</label>
+							</div>
+						</div>
+						
 						<div class="form-group" id="documentShowInclude">
 							<label class="control-label">프로필 이미지 변경</label>
 							<div id="fileuploader">Loading...</div>
@@ -623,7 +643,7 @@
 	
 	if(!$empty){
 		if($CacheCheck['isExpire']){
-			theWikiCacheNewMongo($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], $theMark, $theMarkRefresh);
+			theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], $theMark, $theMarkRefresh);
 		}
 		echo $theMark;
 		$trigger = true;

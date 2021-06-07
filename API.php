@@ -27,100 +27,45 @@
 					$API_SETTINGS['namespace'] = 0;
 				}
 				
-				if(!$API_SETTINGS['noredirect']){
-					$sql = "SELECT * FROM wiki_contents_moved WHERE p_namespace = '$API_SETTINGS[namespace]' AND p_title = binary('$API_SETTINGS[title]') ORDER BY no DESC LIMIT 1";
-					$res = mysqli_query($wiki_db, $sql);
-					$moved_arr = mysqli_fetch_array($res);
+				$find = "SELECT * FROM wiki_contents_namespace WHERE code = '".$API_SETTINGS['namespace']."'";
+				$findres = mysqli_query($wiki_db, $find);
+				$findarr = mysqli_fetch_array($findres);
+				if($findarr){
+					$API_SETTINGS['namespace_text'] = $findarr[3].':';
 				} else {
-					$moved_arr = null;
+					$API_SETTINGS['namespace_text'] = '';
+				}
+				$API_SETTINGS['full_title'] = $API_SETTINGS['namespace_text'].$API_SETTINGS['title'];
+				
+				$now = getDocumentNow($API_SETTINGS['namespace'], $API_SETTINGS['title']);
+				if($now['status']!="success"&&$now['status']!="not found"){
+					die("<script> alert('DB 접속 오류'); </script>");
+				}
+				$arr4 = getACL($API_SETTINGS['full_title'], 'ALL', 'document');
+				
+				if(!$arr4){
+					$arr4 = getACL($API_SETTINGS['namespace_text'], 'ALL', 'document');
 				}
 				
-				if(!empty($moved_arr['title'])){
-					$API_SETTINGS['namespace'] = $moved_arr[4];
-					$API_SETTINGS['title'] = $moved_arr[5];
-					$find = "SELECT * FROM wiki_contents_namespace WHERE code = '$moved_arr[4]'";
-					$findres = mysqli_query($wiki_db, $find);
-					$findarr = mysqli_fetch_array($findres);
-					if($findarr){
-						$API_SETTINGS['namespace'] = $findarr[3].':';
-					} else {
-						$API_SETTINGS['namespace'] = '';
-					}
-					$API_RETURN = array('status'=>'success', 'type'=>'refresh', 'link'=>'/w/'.$API_SETTINGS['namespace'].$API_SETTINGS['title'], 'namespace'=>$moved_arr['namespace'], 'title'=>$moved_arr['title']);
+				if(getACL($arr4['view'], 'view', 'userDiff')&&$arr4['view']>0){
+					$API_RETURN = array('status'=>'error', 'reason'=>'forbidden', 'expire'=>$arr4['expire'], 'class'=>$arr4['view']);
 				} else {
-					$sql = "SELECT * FROM wiki_contents_moved WHERE namespace = '$API_SETTINGS[namespace]' AND title = binary('$API_SETTINGS[title]') ORDER BY no DESC LIMIT 1";
-					$res = mysqli_query($wiki_db, $sql);
-					$moved_arr = mysqli_fetch_array($res);
-					
-					$API_SETTINGS['SQLnamespace'] = $API_SETTINGS['namespace'];
-					$API_SETTINGS['SQLtitle'] = $API_SETTINGS['title'];
-					$find = "SELECT * FROM wiki_contents_namespace WHERE code = '$API_SETTINGS[namespace]'";
-					$findres = mysqli_query($wiki_db, $find);
-					$sqlfindarr = mysqli_fetch_array($findres);
-					if($sqlfindarr){
-						$API_SETTINGS['SQLnamespace_text'] = $sqlfindarr[3].':';
-					} else {
-						$API_SETTINGS['SQLnamespace_text'] = '';
-					}
-					$API_SETTINGS['SQLfull_title'] = $API_SETTINGS['SQLnamespace_text'].$API_SETTINGS['SQLtitle'];
-					if(!empty($moved_arr['title'])){
-						$API_SETTINGS['namespace'] = $moved_arr[1];
-						$API_SETTINGS['title'] = $moved_arr[2];
-					}
-					$find = "SELECT * FROM wiki_contents_namespace WHERE code = '$moved_arr[1]'";
-					$findres = mysqli_query($wiki_db, $find);
-					$findarr = mysqli_fetch_array($findres);
-					if($findarr){
-						$API_SETTINGS['namespace_text'] = $findarr[3].':';
-					} else {
-						$API_SETTINGS['namespace_text'] = '';
-					}
-					$API_SETTINGS['full_title'] = $API_SETTINGS['namespace_text'].$API_SETTINGS['title'];
-					$arr4 = getACL($API_SETTINGS['SQLfull_title'], 'ALL', 'document');
-					
-					if(!$arr4){
-						$arr4 = getACL($sqlfindarr[3], 'ALL', 'document');
-					}
-					
-					if(getACL($arr4['view'], 'view', 'userDiff')&&$arr4['view']>0){
-						$API_RETURN = array('status'=>'error', 'reason'=>'forbidden', 'expire'=>$arr4['expire'], 'class'=>$arr4['view']);
-					} else {
-						if(empty($API_SETTINGS['docReVersion'])){
-							$select = "SELECT * FROM wiki_contents_data WHERE namespace = '$API_SETTINGS[namespace]' AND title = binary('$API_SETTINGS[title]') ORDER BY no DESC LIMIT 1";
-							$select_query = mysqli_query($wiki_db, $select);
-							$select_array = mysqli_fetch_array($select_query);
-							if(!empty($select_array['contents'])){
-								$API_RETURN = array('status'=>'success', 'type'=>'raw', 'data'=>$select_array['contents'], 'rev'=>$select_array['rev']);
-								$return = getDumpVersion($API_SETTINGS['namespace'], $API_SETTINGS['title'], $settings['docVersion']);
-								if($return['contribution']){
-									$API_RETURN['contribution'] = $return['contribution'];
-								}
-								unset($return);
-							} else {
-								$mongoDB = true;
-							}
-						} else {
-							$select = "SELECT * FROM wiki_contents_data WHERE namespace = '$API_SETTINGS[namespace]' AND title = binary('$API_SETTINGS[title]') AND rev ='$API_SETTINGS[docReVersion]' LIMIT 1";
-							$select_query = mysqli_query($wiki_db, $select);
-							$select_array = mysqli_fetch_array($select_query);
-							if(!empty($select_array['contents'])){
-								$API_RETURN = array('status'=>'success', 'type'=>'raw', 'data'=>$select_array['contents'], 'rev'=>$select_array['rev']);
-							} else {
-								$API_RETURN = array('status'=>'error', 'reason'=>'reversion error');
-							}
-						}
-						if($API_SETTINGS['namespace']==5){
-							$find_array = getUser($API_SETTINGS['title'], 'id');
-							if(!empty($find_array['name'])&&$find_array['name']!=$API_SETTINGS['title']){
-								$API_RETURN = array('status'=>'success', 'type'=>'refresh', 'link'=>'/w/'.$API_SETTINGS['SQLnamespace_text'].$find_array['name'], 'namespace'=>$API_SETTINGS['namespace'], 'title'=>$find_array['name']);
-								$mongoDB = false;
-							}
-						}
-						if(getDocumentDetail($API_SETTINGS, 'delete')){
-							define('isdeleted', true)
-							$select_array['contents'] = " ";
+					if(empty($API_SETTINGS['docReVersion'])){
+						if($now['status']=="not found"||defined("isdump")){
 							$mongoDB = true;
-							$API_RETURN = array();
+						} else {
+							$API_RETURN = array('status'=>'success', 'type'=>'raw', 'data'=>$now['data']->contents, 'rev'=>$now['data']->rev, 'deleted'=>defined('isdeleted'));
+							$return = getDumpVersion($API_SETTINGS['namespace'], $API_SETTINGS['title'], $settingsref['docVersion']);
+							if($return['contribution']){
+								$API_RETURN['contribution'] = $return['contribution'];
+							}
+						}
+					} else {
+						$now = getDocumentData($API_SETTINGS['namespace'], $API_SETTINGS['title'], $API_SETTINGS['docReVersion']);
+						if($now['status']=="not found"||defined("isdump")){
+							$API_RETURN = array('status'=>'error', 'reason'=>'reversion error');
+						} else {
+							$API_RETURN = array('status'=>'success', 'type'=>'raw', 'data'=>$now['data']->contents, 'rev'=>$now['data']->rev, 'deleted'=>defined('isdeleted'));
 						}
 					}
 				}
@@ -190,9 +135,12 @@
 					$mongo = mongoDBconnect();
 				}
 				try{
-					
 					if(!$API_SETTINGS['namespace']){
-						$query = array("namespace"=>"0", "title"=>$API_SETTINGS['title']);
+						if($settings_api['docVersion']>=210301){
+							$query = array("title"=>$API_SETTINGS['title']);
+						} else {
+							$query = array("namespace"=>"0", "title"=>$API_SETTINGS['title']);
+						}
 					} else {
 						$query = array("namespace"=>$API_SETTINGS['namespace'], "title"=>$API_SETTINGS['title']);
 					}
@@ -207,7 +155,7 @@
 					
 					if(empty($raw)){
 						if(empty($dumpArray)){
-							$dumpArray = array(190312);
+							$dumpArray = array(200302, 190312);
 						}
 						foreach($dumpArray as $currentDump){
 							$arr2 = $mongo->executeQuery('thewiki.docData'.$currentDump, $query);
@@ -227,7 +175,7 @@
 					}
 					if(getDocumentDetail($API_SETTINGS, 'namufilter')){
 						if(empty($dumpArray)){
-							$dumpArray = array(190312);
+							$dumpArray = array(200302, 190312);
 						}
 						foreach($dumpArray as $currentDump){
 							$arr2 = $mongo->executeQuery('thewiki.docData'.$currentDump, $query);
@@ -262,8 +210,7 @@
 	if(empty($API_RETURN)){
 		$API_RETURN = array('status'=>'error', 'reason'=>'API error');
 	}
-	if(getDocumentDetail($API_SETTINGS, 'delete')){
-		$API_RETURN['data'] = ' ';
+	if($API_RETURN['deleted']){
 		define('isdeleted', true);
 	}
 	if(!defined('MODEINCLUDE')){

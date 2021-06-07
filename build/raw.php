@@ -7,33 +7,21 @@
 	include $_SERVER['DOCUMENT_ROOT'].'/config.php';
 	$version = $page;
 	
+	if(empty($THEWIKI_NOW_TITLE_FULL)||empty($THEWIKI_NOW_TITLE_REAL)){
+		die(header('Location: /w/TheWiki:%ED%99%88'));
+	}
+	
 	if(!defined('loginUser')){
 		header("Content-Type: text/plain; charset=UTF-8");
 		die('login required');
 	}
 	
-	if(empty($THEWIKI_NOW_TITLE_FULL)||empty($THEWIKI_NOW_TITLE_REAL)){
-		die(header('Location: /w/TheWiki:%ED%99%88'));
-	}
-	
-	$sql = "SELECT * FROM wiki_contents_moved WHERE namespace = '$THEWIKI_NOW_NAMESPACE' AND title = binary('$THEWIKI_NOW_TITLE_REAL') ORDER BY no DESC LIMIT 1";
-	$res = mysqli_query($wiki_db, $sql);
-	$moved_arr = mysqli_fetch_array($res);
-	
-	if($moved_arr){
-		$THEWIKI_SQL_NAMESPACE = $moved_arr[1];
-		$THEWIKI_SQL_TITLE_REAL = $moved_arr[2];
-	} else {
-		$THEWIKI_SQL_NAMESPACE = $THEWIKI_NOW_NAMESPACE;
-		$THEWIKI_SQL_TITLE_REAL = $THEWIKI_NOW_TITLE_REAL;
-	}
-	
 	if($version>0){
-		$_POST = array('namespace'=>$THEWIKI_SQL_NAMESPACE, 'title'=>$THEWIKI_SQL_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docReVersion'=>$version, 'option'=>'original');
+		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docReVersion'=>$version, 'option'=>'original');
 	} else if($version==null){
-		$_POST = array('namespace'=>$THEWIKI_SQL_NAMESPACE, 'title'=>$THEWIKI_SQL_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
+		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'option'=>'original');
 	} else {
-		$_POST = array('namespace'=>$THEWIKI_SQL_NAMESPACE, 'title'=>$THEWIKI_SQL_TITLE_REAL, 'noredirect'=>true, 'divide'=>'1', 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docVersion'=>$settings['docVersion'], 'option'=>'original');
+		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'divide'=>'1', 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docVersion'=>$settings['docVersion'], 'option'=>'original');
 	}
 	
 	define('MODEINCLUDE', true);
@@ -57,11 +45,6 @@
 		}
 	}
 	
-	if($api_result->type=='refresh'){
-		header("Content-Type: text/html; charset=UTF-8");
-		die('<script> location.href="'.str_replace('/w/', '/raw/', $api_result->link).'"; </script>');
-	}
-	
 	if(defined('isdeleted')){
 		header("Content-Type: text/html; charset=UTF-8");
 		$api_result->data = '';
@@ -71,5 +54,22 @@
 		header("Content-Type: text/plain; charset=UTF-8");
 	}
 	
-	die($api_result->data);
+	if($_SERVER['HTTP_X_PJAX']){ ?>
+		<div class="wiki-article-menu">
+			<div class="btn-group" role="group">
+				<a class="btn btn-secondary" itemprop="url" href="/w/<?=rawurlencode($THEWIKI_NOW_TITLE_FULL)?>" role="button">문서 보기</a>
+			</div>
+		</div>
+		<h1 class="title">
+			<span itemprop="name"><?=$THEWIKI_NOW_TITLE_FULL?> RAW</span> <?php if(!$version){ echo '(r20'.$settings['docVersion'].'판)'; } else { echo '(r'.$version.'판)'; } ?>
+		</h1>
+		<p class="wiki-edit-date"></p>
+		<div class="wiki-content clearfix">
+			<div class="wiki-inner-content">
+				<hr>
+				<xmp><?=$api_result->data?></xmp>
+<?php
+	} else {
+		echo $api_result->data;
+	}
 ?>
