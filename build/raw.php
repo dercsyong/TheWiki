@@ -11,11 +11,6 @@
 		die(header('Location: /w/TheWiki:%ED%99%88'));
 	}
 	
-	if(!defined('loginUser')){
-		header("Content-Type: text/plain; charset=UTF-8");
-		die('login required');
-	}
-	
 	if($version>0){
 		$_POST = array('namespace'=>$THEWIKI_NOW_NAMESPACE, 'title'=>$THEWIKI_NOW_TITLE_REAL, 'noredirect'=>true, 'ip'=>$_SERVER['HTTP_CF_CONNECTING_IP'], 'docReVersion'=>$version, 'option'=>'original');
 	} else if($version==null){

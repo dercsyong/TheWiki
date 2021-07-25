@@ -12,6 +12,10 @@
 		die(header("Location: /DenyUsers"));
 	}
 	
+	if(!$mongo){
+		$mongo = mongoDBconnect();
+	}
+	
 	if(!empty($_GET['block'])){
 		$THEWIKI_NOW_TITLE_FULL = "차단내역 조회";
 		$THEWIKI_NOW_TITLE_REAL = "!DenyUsers";
@@ -135,8 +139,15 @@
 					$enablePjax = 0;
 				}
 			}
+			if($_POST['enableDM']=="forceoff"){
+				$enableDarkMode = -1;
+			} else if($_POST['enableDM']=="forceon"){
+				$enableDarkMode = 1;
+			} else {
+				$enableDarkMode = 0;
+			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache', docfold = '$docfold', showSidebar = '$showSidebar', enablePjax = '$enablePjax' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
+			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache', docfold = '$docfold', showSidebar = '$showSidebar', enablePjax = '$enablePjax', enableDarkMode = '$enableDarkMode' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
 			mysqli_query($config_db, $sql);
 			
 			die(header("Location: /settings"));
@@ -155,10 +166,17 @@
 		$userAlert = '<b>'.$THEWIKI_BEFORE_TITLE_FULL.'</b>에서 이동된 문서입니다.';
 	}
 	
-	if($settings['enableViewCount']){
+	if($settings['enableViewCount']&&$THEWIKI_NOW_TITLE_REAL!="!DenyUsers"&&$THEWIKI_NOW_TITLE_REAL!="!MyPage"){
 		$wiki_count = "<script type=\"text/javascript\"> $(document).ready(function(){ $.post(\"/count/".$_SESSION['uuid']."\", {d: \"".$THEWIKI_NOW_TITLE_FULL."\"}, function(Data){ $(\".viewcount\").html('문서 조회수 : '+Data+'회'); }); }); </script><span class='viewcount'>문서 조회수 확인중...</span>";
 	} else {
 		$wiki_count = "<span>&nbsp;</span>";
+	}
+	
+	if($THEWIKI_NOW_NAMESPACE==5){
+		$return = getUserData(strtolower($THEWIKI_NOW_TITLE_REAL), null, null, 'id');
+		if($return['status']=="success"&&$return['name']!=$THEWIKI_NOW_TITLE_REAL){
+			die(header("Location: /w/내문서:".$return['name']));
+		}
 	}
 	
 	$tPost = $_POST;
@@ -198,10 +216,6 @@
 	
 	if(empty($arr['text'])){
 		$arr['text'] = $api_result->data;
-		$contribution = $api_result->contribution;
-		if($contribution==''){
-			$contribution = '기여자 정보가 없습니다';
-		}
 		$AllPage = $api_result->count;
 	}
 	$THEWIKI_NOW_REV = $api_result->rev;
@@ -222,9 +236,6 @@
 		}
 	}
 	
-	if($THEWIKI_NAV_ADMIN&&$THEWIKI_NOW_TITLE_REAL!="!MyPage"){
-		$THEWIKI_BTN[] = array('/admin/acl///HERE//', 'ACL');
-	}
 	if($THEWIKI_NOW_TITLE_REAL=="!DenyUsers"){
 		$THEWIKI_BTN = array();
 	} else if($THEWIKI_NOW_TITLE_REAL!="!MyPage"){
@@ -232,7 +243,7 @@
 			$THEWIKI_BTN[] = array('/userinfo///HERE///contributions', '문서 기여내역');
 			$THEWIKI_BTN[] = array('/userinfo///HERE///discuss', '토론 기여내역');
 		} else {
-			if($settings['docCache']){
+			if($settings['docCache']||(!$settings['docCache']&&$noredirect)){
 				$THEWIKI_BTN[] = array('/renew///HERE//', '새로고침');
 			}
 			if($contribution!='기여자 정보가 없습니다'){
@@ -245,26 +256,18 @@
 		if($ipCheck['edit']){
 			$THEWIKI_BTN[] = array('/edit///HERE//', '편집');
 		}
-		$discussBoldSQL = "SELECT * FROM wiki_discuss_target WHERE namespace = '$THEWIKI_NOW_NAMESPACE' AND title = binary('$THEWIKI_NOW_TITLE_REAL') AND status = '0' LIMIT 1";
-		$discussBoldRES = mysqli_query($wiki_db, $discussBoldSQL);
-		$discussBoldCHK = mysqlI_fetch_array($discussBoldRES);
-		
-		if(!empty($discussBoldCHK['topic_title'])){
-			$discussBold = true;
-		}
+		$discussBold = discussBoldChk($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, 'default');
 		if(!$discussBold){
-			$discussBoldSQL = "SELECT * FROM wiki_discuss_delete_target WHERE namespace = '$THEWIKI_NOW_NAMESPACE' AND title = binary('$THEWIKI_NOW_TITLE_REAL') AND status = '0' LIMIT 1";
-			$discussBoldRES = mysqli_query($wiki_db, $discussBoldSQL);
-			$discussBoldCHK = mysqlI_num_rows($discussBoldRES);
-			
-			if($discussBoldCHK){
-				$discussBold = true;
-			}
+			$discussBold = discussBoldChk($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, 'delete');
 		}
 		$THEWIKI_BTN[] = array('/discuss///HERE///0', '토론');
 	}
 	
-	$CacheCheck = theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], null, null);
+	if($settings['docCache']){
+		$CacheCheck = theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], null, null);
+	} else {
+		$CacheCheck['status'] = false;
+	}
 	if(!$CacheCheck['status']){
 		$CacheCheck['isExpire'] = 1;
 		if(defined('isdeleted')){
@@ -383,7 +386,9 @@
 		}
 	} else {
 		$arr['text'] = $CacheCheck['raw'];
-		
+		if($_SESSION['THEWIKI_MOVED_DOCUMENT_CNT']>0){
+			$_SESSION['THEWIKI_MOVED_DOCUMENT_CNT'] = 0;
+		}
 		if(!empty($forceDocument)){
 			require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
 			$theMark = new theMark($forceDocument);
@@ -402,6 +407,10 @@
 	
 	$title = $THEWIKI_NOW_NAMESPACE==10?'더위키:'.$THEWIKI_NOW_TITLE_REAL:$THEWIKI_NOW_TITLE_FULL;
 	include $_SERVER['DOCUMENT_ROOT'].'/layout.php';
+	
+	if($THEWIKI_NAV_ADMIN&&$THEWIKI_NOW_TITLE_REAL!="!MyPage"&&$THEWIKI_NOW_TITLE_REAL!="!DenyUsers"){
+		$THEWIKI_BTN[] = array('/admin/acl///HERE//', 'ACL');
+	}
 	
 	if(!$_SERVER['HTTP_X_PJAX']){
 		echo $headLayout.$adsenseScript.$parserLayout.$bodyLayout.$siteNotice;
@@ -435,40 +444,8 @@
 <?php
 	if($THEWIKI_NOW_TITLE_REAL=="!DenyUsers"){
 		echo $blockScript;
-		$arr1 = "{{{+1 차단 해제내역은 기록되지 않으며, 차단내역은 현재 차단된 상태인 경우에만 조회됩니다.[br]그 외 차단내역/해제내역은 [[http://thewiki.kr/request/|기술지원]]을 통해 요청해주세요.}}}[br]\n";
-		$price = array();
-		foreach ($denyLists as $key => $row){
-			$price[$key] = $row['startDate'];
-		}
-		array_multisort($price, SORT_ASC, $denyLists);
-		
-		foreach(array_reverse($denyLists) as $key=>$value){
-			$get_admin = getAdminCHK($value['from']);
-			$arr['text'] .= " * '''".$get_admin['name']." [[내문서:".$value['from']."|".$value['from']."]]''' => ";
-			if($value['cidr']){
-				$arr['text'] .= " IP ".$value['target']."/".$value['cidr']." ";
-				if(!$value['topic']&&!$value['edit']){
-					$arr['text'] .= "토론/편집";
-				} else if(!$value['edit']){
-					$arr['text'] .= "편집";
-				} else if(!$value['topic']){
-					$arr['text'] .= "토론";
-				}
-				$arr['text'] .= " 차단 '''(".$value['startDate']." ~ ".$value['endDate'].")'''\n";
-			} else {
-				$arr['text'] .= " 이용자 [[내문서:".$value['target']."|".$value['target']."]] 차단 '''(".$value['startDate']." ~ ".$value['endDate'].")'''\n";
-			}
-			preg_match("/#[0-9]+/i", htmlspecialchars($value['reason']), $match);
-			$match[0] = str_replace("#", "", $match[0]);
-			$value['reason'] = str_replace("#".$match[0], "<a href='/RecentDiscuss?threadNo=".$match[0]."'>#".$match[0]."</a>", $value['reason']);
-			
-			preg_match("/[0-9]+/i", htmlspecialchars($value['reason']), $match);
-			if(substr($match[0], 0, 2)==substr($value['reason'], 0, 2)){
-				$value['reason'] = "<a href='/Recent?docuNo=".$match[0]."'>".$match[0]."</a>".substr($value['reason'], strlen($match[0]));
-			}
-			
-			$arr['text'] .= "  * 사유 : ".$value['reason']."\n";
-		}
+		$arr1 = "{{{+1 최근 200건까지만 표시되며, 그 외 내역은 [[http://thewiki.kr/request/|기술지원]]을 통해 요청해주세요.}}}[br]\n";
+		$arr['text'] = implode("\n", $denyLists);
 		
 		require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
 		$theMark = new theMark($arr1.$arr['text']);
@@ -514,6 +491,15 @@
 			<form action="settingsapply" method="post" name="settings">
 				<section class="tab-content settings-section">
 					<div role="tabpanel" class="tab-pane fade in active" id="siteLayout">
+						<div class="form-group" id="browserDarkMode">
+							<label class="control-label">다크모드</label>
+							<select class="form-control setting-item" name="enableDM">
+								<option value="forceoff" <?php if($settings['enableDarkMode']==-1){ echo 'selected'; } ?>>사용안함</option>
+								<option value="default" <?php if($settings['enableDarkMode']==0){ echo 'selected'; } ?>>브라우저 설정에 따름</option>
+								<option value="forceon" <?php if($settings['enableDarkMode']==1){ echo 'selected'; } ?>>사용함</option>
+							</select>
+						</div>
+						
 						<div class="form-group" id="documentVersion">
 							<label class="control-label">덤프 버전</label>
 							<select class="form-control setting-item" name="docVersion">
@@ -642,6 +628,9 @@
 	} // 더위키 설정 페이지
 	
 	if(!$empty){
+		if(!$settings['docCache']){
+			$CacheCheck['isExpire'] = false;
+		}
 		if($CacheCheck['isExpire']){
 			theWikiCache($THEWIKI_NOW_NAMESPACE, $THEWIKI_NOW_TITLE_REAL, $THEWIKI_NOW_REV, $settings['docVersion'], $theMark, $theMarkRefresh);
 		}

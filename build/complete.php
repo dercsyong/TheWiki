@@ -30,7 +30,7 @@
 		}
 		
 		if(!empty($THEWIKI_NOW_TITLE_REAL)){
-			$query = new MongoDB\Driver\Query(array('namespace' => $THEWIKI_NOW_NAMESPACE, 'title' => array('$regex'=>"^".$THEWIKI_NOW_TITLE_REAL)), array('limit' => 10 ));
+			$query = new MongoDB\Driver\Query(array('namespace' => $THEWIKI_NOW_NAMESPACE, 'title' => array('$regex'=>"^".str_replace(array("(", ")"), array("\\(", "\\)"), $THEWIKI_NOW_TITLE_REAL))), array('limit' => 10 ));
 		} else {
 			if(!empty($THEWIKI_NOW_TITLE_FULL)){
 				$query = new MongoDB\Driver\Query(array('namespace' => $THEWIKI_NOW_NAMESPACE), array('limit' => 10 ));
