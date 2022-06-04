@@ -27,19 +27,15 @@
 		$denyLists[] = getdenyLists('ip');
 	}
 	if(!empty($_GET['settings'])){
+		$T_SERVER['HTTP_CF_CONNECTING_IP'] = false;
+		if(isLogin($_SESSION)['return']){
+			$T_SERVER['HTTP_CF_CONNECTING_IP'] = $_SERVER['HTTP_CF_CONNECTING_IP'];
+			$_SERVER['HTTP_CF_CONNECTING_IP'] = isLogin($_SESSION)['id'];
+		}
 		$THEWIKI_NOW_TITLE_FULL = $_SERVER['HTTP_CF_CONNECTING_IP']." 개인 설정";
 		$THEWIKI_NOW_TITLE_REAL = "!MyPage";
-		$settings['enableViewCount'] = false;
-		$sql = "SELECT * FROM settings WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
+		$settings = getWikiSettings('all', $_SERVER['HTTP_CF_CONNECTING_IP']);
 		if(!empty($_GET['autover'])){
-			$res = mysqli_query($config_db, $sql);
-			$cnt = mysqli_num_rows($res);
-			if(!$cnt){
-				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
-				$sql .= "('".$_SERVER['HTTP_CF_CONNECTING_IP']."', '$settingsref[docVersion]')";
-				mysqli_query($config_db, $sql);
-			}
-			
 			if($_GET['autover']=="180925_alphawiki"){
 				$docVersion = 180925;
 			} else if(in_array($_GET['autover'], $dumpArray)){
@@ -48,8 +44,7 @@
 				$docVersion = $settingsref['docVersion'];
 			}
 			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', enableAds = '1' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
-			mysqli_query($config_db, $sql);
+			@updateWikiSettings('parser.docVersion', $_SERVER['HTTP_CF_CONNECTING_IP'], $docVersion);
 			
 			if(!empty($_SERVER['HTTP_REFERER'])){
 				$_SESSION['AUTOVER_APPLY'] = true;
@@ -60,95 +55,14 @@
 			}
 		}
 		if(!empty($_GET['create'])){
-			$sql = "SELECT * FROM settings WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
-			$res = mysqli_query($config_db, $sql);
-			$cnt = mysqli_num_rows($res);
-			if(!$cnt){
-				$sql = "INSERT INTO settings(`ip`, `docVersion`) VALUES ";
-				$sql .= "('".$_SERVER['HTTP_CF_CONNECTING_IP']."', '$settingsref[docVersion]')";
-				mysqli_query($config_db, $sql);
-			}
-			
-			die(header("Location: /settings"));
+			@updateWikiSettings('skin.delete', $_SERVER['HTTP_CF_CONNECTING_IP']);
+			die("ok");
 		}
 		if(!empty($_GET['apply'])){
-			if($_POST['Notice']=="on"){
-				$enableNotice = 1;
-			} else {
-				$enableNotice = 0;
+			if($_POST['checkSave']=="1"){
+				@updateWikiSettings('skin.all', $_SERVER['HTTP_CF_CONNECTING_IP'], $_POST);
 			}
-			if($_POST['docSL']=="on"){
-				$docStrikeLine = 1;
-			} else {
-				$docStrikeLine = 0;
-			}
-			if($_POST['imgAL']=="on"){
-				$imgAutoLoad = 1;
-			} else {
-				$imgAutoLoad = 0;
-			}
-			if(in_array($_POST['docVersion'], $dumpArray)){
-				$docVersion = $_POST['docVersion'];
-			} else {
-				$docVersion = $settingsref['docVersion'];
-			}
-			if($_POST['ViewCount']=="on"){
-				$enableViewCount = 1;
-			} else {
-				$enableViewCount = 0;
-			}
-			if($_POST['docSI']=="on"){
-				$docShowInclude = 1;
-			} else {
-				$docShowInclude = 0;
-			}
-			if($docVersion!=$settingsref['docVersion']){
-				$enableAds = 1;
-			} else {
-				if($_POST['Ads']=="on"){
-					$enableAds = 1;
-				} else {
-					$enableAds = 0;
-				}
-			}
-			if($_POST['docF']=="on"){
-				$docfold = 1;
-			} else {
-				$docfold = 0;
-			}
-			if(!$imgAutoLoad||!$docStrikeLine||!$docShowInclude||$docfold){
-				$docCache = 0;
-			} else {
-				if($_POST['docCA']=="on"){
-					$docCache = 1;
-				} else {
-					$docCache = 0;
-				}
-			}
-			if($_POST['showSB']=="on"){
-				$showSidebar = 1;
-			} else {
-				$showSidebar = 0;
-			}
-			if($docfold){
-				$enablePjax = 0;
-			} else {
-				if($_POST['enablepjax']=="on"){
-					$enablePjax = 1;
-				} else {
-					$enablePjax = 0;
-				}
-			}
-			if($_POST['enableDM']=="forceoff"){
-				$enableDarkMode = -1;
-			} else if($_POST['enableDM']=="forceon"){
-				$enableDarkMode = 1;
-			} else {
-				$enableDarkMode = 0;
-			}
-			
-			$sql = "UPDATE settings SET docVersion = '$docVersion', docStrikeLine = '$docStrikeLine', imgAutoLoad = '$imgAutoLoad', enableAds = '$enableAds', enableNotice = '$enableNotice', enableViewCount = '$enableViewCount', docShowInclude = '$docShowInclude', docCache = '$docCache', docfold = '$docfold', showSidebar = '$showSidebar', enablePjax = '$enablePjax', enableDarkMode = '$enableDarkMode' WHERE ip = '$_SERVER[HTTP_CF_CONNECTING_IP]'";
-			mysqli_query($config_db, $sql);
+			@updateWikiSettings('wiki.all', $_SERVER['HTTP_CF_CONNECTING_IP'], $_POST);
 			
 			die(header("Location: /settings"));
 		}
@@ -228,6 +142,11 @@
 	}
 	
 	if($THEWIKI_NOW_NAMESPACE==5){
+		if($THEWIKI_NOW_TITLE_REAL=="[System]"){
+			$forceDocument = '{{{#!html <div class="alert alert-info fade in last" id="userDiscussAlert" role="alert"><p>이 계정은 특수 계정입니다.</p></div>}}}';
+			$empty = false;
+		}
+		
 		$get_block_arr = getBlockCHK($THEWIKI_NOW_TITLE_REAL);
 		$get_admin = getAdminCHK($THEWIKI_NOW_TITLE_REAL);
 		
@@ -245,9 +164,6 @@
 		} else {
 			if($settings['docCache']||(!$settings['docCache']&&$noredirect)){
 				$THEWIKI_BTN[] = array('/renew///HERE//', '새로고침');
-			}
-			if($contribution!='기여자 정보가 없습니다'){
-				$THEWIKI_BTN[] = array('/contribution///HERE//', '기여자 내역');
 			}
 			$THEWIKI_BTN[] = array('/backlink///HERE//', '역링크');
 		}
@@ -354,7 +270,7 @@
 		}
 		
 		if(!empty($arr['text'])){
-			if(defined("loginUserAdmin")){
+			if(defined("loginUserAdmin")||defined("joinBetaParser")){
 				require_once("/".theMarkBetaPath."/".theMarkBetaName.".php");
 			} else {
 				require_once($_SERVER['DOCUMENT_ROOT']."/theMark.php");
@@ -465,162 +381,198 @@
 		$CacheCheck['isExpire'] = 0;
 		$THEWIKI_NOW_NAMESPACE = 10;
 	} else if($THEWIKI_NOW_TITLE_REAL=="!MyPage"){
-		echo $blockScript;
-		if($settings['ip']=="0.0.0.0"){ ?>
-			<h4>
-				<a href="settingscreate">설정파일 생성</a>이 필요합니다.
-			</h4>
-<?php	} else { ?>
-			<link href="/css/uploadfile.css" rel="stylesheet">
-			<script type="text/javascript">
-				$(document).ready(function(){
-					$("#fileuploader").uploadFile({
-						url:"Upload/user.php",
-						fileName: "<?=$settings['ip']?>",
-						returnType:"json",
-						singleFileUploads : true,
-						maxFileSize : 10240*1024,
-						uploadStr : "업로드",
-						doneStr : "완료",
-						abortStr : "취소",
-						allowedTypes: "jpg, png, gif",
-						extErrorStr : ", 다응 확장자만 업로드할 수 있습니다 : "
-					});
+		echo $blockScript; ?>
+		<link href="/css/uploadfile.css" rel="stylesheet">
+		<script type="text/javascript">
+			$(document).ready(function(){
+				$("#fileuploader").uploadFile({
+					url:"Upload/user.php",
+					fileName: "<?=$settings['ip']?>",
+					returnType:"json",
+					singleFileUploads : true,
+					maxFileSize : 10240*1024,
+					uploadStr : "업로드",
+					doneStr : "완료",
+					abortStr : "취소",
+					allowedTypes: "jpg, png, gif",
+					extErrorStr : ", 다응 확장자만 업로드할 수 있습니다 : "
 				});
-			</script>
-			<form action="settingsapply" method="post" name="settings">
-				<section class="tab-content settings-section">
-					<div role="tabpanel" class="tab-pane fade in active" id="siteLayout">
-						<div class="form-group" id="browserDarkMode">
-							<label class="control-label">다크모드</label>
-							<select class="form-control setting-item" name="enableDM">
-								<option value="forceoff" <?php if($settings['enableDarkMode']==-1){ echo 'selected'; } ?>>사용안함</option>
-								<option value="default" <?php if($settings['enableDarkMode']==0){ echo 'selected'; } ?>>브라우저 설정에 따름</option>
-								<option value="forceon" <?php if($settings['enableDarkMode']==1){ echo 'selected'; } ?>>사용함</option>
-							</select>
-						</div>
-						
-						<div class="form-group" id="documentVersion">
-							<label class="control-label">덤프 버전</label>
-							<select class="form-control setting-item" name="docVersion">
-					<?php	foreach($dumpArray as $value){ ?>
-								<option value="<?=$value?>" <?php if($settings['docVersion']==$value){ echo 'selected'; } ?>>20<?=$value?><?php if($settingsref['docVersion']==$value){ echo ' (* 권장)'; }?></option>
-					<?php	} ?>
-							</select>
-						</div>
-						
-						<div class="form-group" id="imagesAutoLoad">
-							<label class="control-label">자동으로 이미지 읽기</label>
-							<div class="checkbox">
-								<label>
-									<input type="checkbox" name="imgAL" <?php if($settings['imgAutoLoad']){ echo "checked"; }?>> 사용
-								</label>
-							</div>
-						</div>
-						<div class="form-group" id="Ads">
-							<label class="control-label">광고 보이기</label>
-							<div class="checkbox">
-								<label>
-						<?php	if($settings['docVersion']!=$settingsref['docVersion']){ ?>
-									<input type="hidden" name="Ads" value="on"><input type="checkbox" name="Ads" <?php if($settings['enableAds']){ echo "checked"; }?> disabled> 사용 <small>(비권장 덤프를 사용할 경우 기능 비활성화 불가능)</small>
-						<?php	} else { ?>
-									<input type="checkbox" name="Ads" <?php if($settings['enableAds']){ echo "checked"; }?>> 사용
-						<?php	} ?>
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="Notice">
-							<label class="control-label">공지사항 보이기</label> <label style="font-size:0.8em;">(텍스트 광고 포함)</label>
-							<div class="checkbox">
-								<label>
-									<input type="checkbox" name="Notice" <?php if($settings['enableNotice']){ echo "checked"; }?>> 사용
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="ViewCount">
-							<label class="control-label">문서 조회수 보이기</label>
-							<div class="checkbox">
-								<label>
-									<input type="checkbox" name="ViewCount" <?php if($settings['enableViewCount']){ echo "checked"; }?>> 사용
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="documentStrikeLine">
-							<label class="control-label">취소선 보이기</label>
-							<div class="checkbox">
-								<label>
-									<input type="checkbox" name="docSL" <?php if($settings['docStrikeLine']){ echo "checked"; }?>> 사용
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="documentShowInclude">
-							<label class="control-label">include된 문서 보이기</label>
-							<div class="checkbox">
-								<label>
-									<input type="checkbox" name="docSI" <?php if($settings['docShowInclude']){ echo "checked"; }?>> 사용
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="documentShowInclude">
-							<label class="control-label">문서 캐싱</label>
-							<div class="checkbox">
-								<label>
-						<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']||$settings['docfold']){ ?>
-									<input type="hidden" name="docCA" value=""><input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
-						<?php	} else { ?>
-									<input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?>> 사용
-						<?php	} ?>
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="documentShowInclude">
-							<label class="control-label">문단 접기 활성화</label>
-							<div class="checkbox">
-								<label>
-									<input type="checkbox" name="docF" <?php if($settings['docfold']){ echo "checked"; }?>> 사용
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="documentShowInclude">
-							<label class="control-label">사이드바 활성화</label>
-							<div class="checkbox">
-								<label>
-									<input type="checkbox" name="showSB" <?php if($settings['showSidebar']){ echo "checked"; }?>> 사용
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="enablePjax">
-							<label class="control-label">pjax 활성화</label>
-							<div class="checkbox">
-								<label>
-						<?php	if($settings['docfold']){ ?>
-									<input type="hidden" name="enablepjax" value=""><input type="checkbox" name="enablepjax" <?php if($settings['enablePjax']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
-						<?php	} else { ?>
-									<input type="checkbox" name="enablepjax" <?php if($settings['enablePjax']){ echo "checked"; }?>> 사용
-						<?php	} ?>
-								</label>
-							</div>
-						</div>
-						
-						<div class="form-group" id="documentShowInclude">
-							<label class="control-label">프로필 이미지 변경</label>
-							<div id="fileuploader">Loading...</div>
-						</div>
-						<div class="form-group">
-							&nbsp;	<button type="submit" class="btn btn-primary">적용</button>
+			});
+		</script>
+		<form action="settingsapply" method="post" name="settings">
+			<section class="tab-content settings-section">
+				<div role="tabpanel" class="tab-pane fade in active" id="siteLayout">
+					<br><h4>스킨 설정</h4><br>
+					<div class="form-group" id="checkSave">
+						<label class="control-label">스킨설정 저장위치</label>
+						<select class="form-control setting-item" name="checkSave">
+							<option value="0" <?php if($settings['checkSave']==null||$settings['checkSave']!=1){ echo 'selected'; } ?>>브라우저</option>
+							<option value="1" <?php if($settings['checkSave']==1){ echo 'selected'; } ?>>서버</option>
+						</select>
+					</div>
+					
+					<div class="form-group" id="browserDarkMode">
+						<label class="control-label">다크모드</label>
+						<select class="form-control setting-item" name="enableDM">
+							<option value="forceoff" <?php if($settings['enableDarkMode']==-1){ echo 'selected'; } ?>>사용안함</option>
+							<option value="default" <?php if($settings['enableDarkMode']==0){ echo 'selected'; } ?>>브라우저 설정에 따름</option>
+							<option value="forceon" <?php if($settings['enableDarkMode']==1){ echo 'selected'; } ?>>사용함</option>
+						</select>
+					</div>
+					
+					<div class="form-group" id="articleSize">
+						<label class="control-label">고정폭</label>
+						<select class="form-control setting-item" name="articleSize">
+				<?php	$articleSize = array(1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000);
+						foreach($articleSize as $value){ ?>
+							<option value="<?=$value?>" <?php if($settings['articleSize']==$value){ echo 'selected'; } ?>><?=$value?>px<?php if($settingsref['articleSize']==$value){ echo ' (* 권장)'; }?></option>
+				<?php	} ?>
+						</select>
+					</div>
+					
+					<div class="form-group" id="ViewCount">
+						<label class="control-label">문서 조회수 보이기</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="ViewCount" <?php if($settings['enableViewCount']){ echo "checked"; }?>> 사용
+							</label>
 						</div>
 					</div>
-				</section>
-			</form>
-<?php	} ?>
+					
+					<div class="form-group" id="documentStrikeLine">
+						<label class="control-label">취소선 보이기</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="docSL" <?php if($settings['docStrikeLine']){ echo "checked"; }?>> 사용
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="fixNavbar">
+						<label class="control-label">상단바 고정</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="fixNavbar" <?php if($settings['fixNavbar']){ echo "checked"; }?>> 사용
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="leftSidebar">
+						<label class="control-label">왼쪽 사이드바</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="leftSidebar" <?php if($settings['leftSidebar']){ echo "checked"; }?>> 사용
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="hideSidebar">
+						<label class="control-label">사이드바 숨기기</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="hideSidebar" <?php if($settings['hideSidebar']){ echo "checked"; }?>> 사용
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group hdn">
+						&nbsp;	<button type="submit" class="btn btn-primary">적용</button>
+					</div>
+					<hr><br><h4>엔진/파서 설정 <small>(엔진/파서설정은 서버에 저장됩니다)</small></h4><br>
+					
+					<div class="form-group" id="documentVersion">
+						<label class="control-label">덤프 버전</label>
+						<select class="form-control setting-item" name="docVersion">
+				<?php	foreach($dumpArray as $value){ ?>
+							<option value="<?=$value?>" <?php if($settings['docVersion']==$value){ echo 'selected'; } ?>>20<?=$value?><?php if($settingsref['docVersion']==$value){ echo ' (* 권장)'; }?></option>
+				<?php	} ?>
+						</select>
+					</div>
+					
+					<div class="form-group" id="imagesAutoLoad">
+						<label class="control-label">자동으로 이미지 읽기</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="imgAL" <?php if($settings['imgAutoLoad']){ echo "checked"; }?>> 사용
+							</label>
+						</div>
+					</div>
+					<div class="form-group" id="Ads">
+						<label class="control-label">광고 보이기</label>
+						<div class="checkbox">
+							<label>
+					<?php	if($settings['docVersion']!=$settingsref['docVersion']){ ?>
+								<input type="hidden" name="Ads" value="on"><input type="checkbox" name="Ads" <?php if($settings['enableAds']){ echo "checked"; }?> disabled> 사용 <small>(비권장 덤프를 사용할 경우 기능 비활성화 불가능)</small>
+					<?php	} else { ?>
+								<input type="checkbox" name="Ads" <?php if($settings['enableAds']){ echo "checked"; }?>> 사용
+					<?php	} ?>
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="Notice">
+						<label class="control-label">공지사항 보이기</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="Notice" <?php if($settings['enableNotice']){ echo "checked"; }?>> 사용
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="documentShowInclude">
+						<label class="control-label">include된 문서 보이기</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="docSI" <?php if($settings['docShowInclude']){ echo "checked"; }?>> 사용
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="documentCache">
+						<label class="control-label">문서 캐싱</label>
+						<div class="checkbox">
+							<label>
+					<?php	if(!$settings['imgAutoLoad']||!$settings['docStrikeLine']||!$settings['docShowInclude']||$settings['docfold']){ ?>
+								<input type="hidden" name="docCA" value=""><input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
+					<?php	} else { ?>
+								<input type="checkbox" name="docCA" <?php if($settings['docCache']){ echo "checked"; }?>> 사용
+					<?php	} ?>
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="documentFold">
+						<label class="control-label">문단 접기 활성화</label>
+						<div class="checkbox">
+							<label>
+								<input type="checkbox" name="docF" <?php if($settings['docfold']){ echo "checked"; }?>> 사용
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="enablePjax">
+						<label class="control-label">pjax 활성화</label>
+						<div class="checkbox">
+							<label>
+					<?php	if($settings['docfold']){ ?>
+								<input type="hidden" name="enablepjax" value=""><input type="checkbox" name="enablepjax" <?php if($settings['enablePjax']){ echo "checked"; }?> disabled> 사용 <small>(일부 기능 변경시 기능 활성화 불가능)</small>
+					<?php	} else { ?>
+								<input type="checkbox" name="enablepjax" <?php if($settings['enablePjax']){ echo "checked"; }?>> 사용
+					<?php	} ?>
+							</label>
+						</div>
+					</div>
+					
+					<div class="form-group" id="documentShowInclude">
+						<label class="control-label">프로필 이미지 변경</label>
+						<div id="fileuploader">Loading...</div>
+					</div>
+					<div class="form-group">
+						&nbsp;	<button type="submit" class="btn btn-primary">적용</button>
+					</div>
+				</div>
+			</section>
+		</form>
 	</div>
 </div>
 <?php
@@ -637,41 +589,7 @@
 		echo $theMark;
 		$trigger = true;
 		if($THEWIKI_NOW_NAMESPACE<10&&$THEWIKI_NOW_NAMESPACE!=5){
-			if(!$mongo){
-				$mongo = mongoDBconnect();
-			}
-			try{
-				$query = new MongoDB\Driver\Query(array('$text'=>array('$search'=>$THEWIKI_NOW_TITLE_FULL)), array('limit'=>5));
-				$arr = $mongo->executeQuery('thewiki.docData'.$settingsref['docVersion'], $query);
-				$print = array();
-				foreach($arr as $doc){
-					$trigger = false;
-					if($doc->namespace==1||$doc->namespace==6){
-						continue;
-					}
-					if($doc->namespace>0){
-						$find = "SELECT * FROM wiki_contents_namespace WHERE code = '$doc->namespace' OR fake = '$doc->namespace'";
-						$findres = mysqli_query($wiki_db, $find);
-						$findarr = mysqli_fetch_array($findres);
-						
-						if($findarr){
-							$docTitle = $doc->title;
-							$doc->title = $findarr[3].":".$doc->title;
-							if($findarr[2]==$doc->namespace){
-								if($findarr[4]!=$settings['docVersion']){
-									$doc->title = $docTitle;
-								}
-							}
-						}
-					}
-					if($doc->title==$THEWIKI_NOW_TITLE_FULL){
-						continue;
-					}
-					$print[] = $doc->title;
-				}
-			} catch (MongoDB\Driver\Exception\Exception $e){
-				//
-			}
+			$print = randomdocu(5);
 			if(!$trigger&&!empty($print)){
 				shuffle($print);
 				echo '<div class="clearfix"></div><div class="wiki-category"><h2>관련 문서</h2><ul>';
@@ -708,7 +626,7 @@
 		}
 		$title_list = "| ".$title_list;
 		
-		echo '<br><h4>존재하지 않는 문서</h4><hr>1) 이전 덤프버전에 해당 문서가 존재할 수 있습니다. <a href="/settings">설정</a>에서 덤프 버전을 변경해보세요.<br>2) Google 맞춤검색에서 비슷한 문서가 있는지 검색해보세요.<br>3) <a href="/edit/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_top">새로운 문서</a>를 만들어보세요.';
+		echo '<br><h4>존재하지 않는 문서</h4><hr>1) 다른 문서로 문서가 이동되었을 수 있습니다. <a href="/renew/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'">문서 새로고침</a>으로 문서가 이동되었는지 확인해보세요.<br>2) Google 맞춤검색에서 비슷한 문서가 있는지 검색해보세요.<br>3) <a href="/edit/'.rawurlencode($THEWIKI_NOW_TITLE_FULL).'" target="_top">새로운 문서</a>를 만들어보세요.';
 		if(count($result)){
 			echo '<hr><br>이런 문서들이 있을 수 있습니다. 확인해보세요!<br>'.$title_list;
 		}

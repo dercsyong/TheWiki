@@ -39,7 +39,7 @@
 				
 				$now = getDocumentNow($API_SETTINGS['namespace'], $API_SETTINGS['title']);
 				if($now['status']!="success"&&$now['status']!="not found"){
-					die("<script> alert('DB 접속 오류'); </script>");
+					// mongo error
 				}
 				$arr4 = getACL($API_SETTINGS['full_title'], 'ALL', 'document');
 				
@@ -158,11 +158,11 @@
 							$dumpArray = array(200302, 190312);
 						}
 						foreach($dumpArray as $currentDump){
-							$arr2 = $mongo->executeQuery('thewiki.docData'.$currentDump, $query);
+							$arr2 = dumpCheck($API_SETTINGS['namespace'], $API_SETTINGS['title'], $currentDump);
 							
-							foreach($arr2 as $value){
-								$raw = $value->text;
-								$contribution = implode('\\n',$value->contributors);
+							if($arr2['return']){
+								$raw = $arr2['text'];
+								$contribution = implode('\\n',$arr2['contributors']);
 								break;
 							}
 							
@@ -178,11 +178,11 @@
 							$dumpArray = array(200302, 190312);
 						}
 						foreach($dumpArray as $currentDump){
-							$arr2 = $mongo->executeQuery('thewiki.docData'.$currentDump, $query);
+							$arr2 = dumpCheck($API_SETTINGS['namespace'], $API_SETTINGS['title'], $currentDump);
 							
-							foreach($arr2 as $value){
-								$raw = $value->text;
-								$contribution = implode('\\n',$value->contributors);
+							if($arr2['return']){
+								$raw = $arr2['text'];
+								$contribution = implode('\\n',$arr2['contributors']);
 								break;
 							}
 							
@@ -196,8 +196,7 @@
 					if(empty($raw)){
 						$API_RETURN = array('status'=>'error', 'reason'=>'empty document');
 					} else {
-						$arr = $mongo->executeCommand('thewiki', new MongoDB\Driver\Command(["count"=>"docData".$settings_api['docVersion']]))->toArray();
-						$AllPage = $arr[0]->n;
+						$AllPage = getpagecount();
 						$API_RETURN = array('status'=>'success', 'type'=>'raw', 'data'=>$raw, 'contribution'=>$contribution, 'count'=>$AllPage);
 					}
 				} catch (MongoDB\Driver\Exception\Exception $e){

@@ -34,7 +34,11 @@
 		} else if($api_result->reason=='empty document'){
 			$api_result->data = '';
 		} else if($api_result->reason=='reversion error'){
-			$api_result->data = '';
+			if($api_result->isDump){
+				die('<script> alert("잘못된 버전입니다. 덤프데이터는 r0 판으로 조회해야 합니다."); history.go(-1); </script>');
+			} else {
+				$api_result->data = '';
+			}
 		} else {
 			die('<script> alert("API에 문제가 발생했습니다."); </script>');
 		}
